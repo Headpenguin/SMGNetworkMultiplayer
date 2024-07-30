@@ -1,0 +1,5 @@
+.*.swp
+dependencies.mk
+ignored/*
+obj/*
+bin/*

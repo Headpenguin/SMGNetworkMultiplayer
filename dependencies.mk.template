@@ -1,0 +1,65 @@
+#
+# If your setup is generic, you will likely only need
+# to change the immediately below variables to match your setup.
+# However, if you have a special setup, adjust the rest of this 
+# file as needed.
+#
+
+
+
+# Path to Bussun
+BUSSUN := ./
+
+# Regions available are USA (RMGE), JPN(RMGJ), KOR(RMGK), PAL(RMGP)
+REGION := USA
+
+
+
+#
+# Everything below this point probably does not need to be adjusted,
+# but feel free to adjust as needed.
+#
+
+
+
+# Path to the external symbol map
+SYMBOL_MAP := $(BUSSUN)/symbols/$(REGION).txt
+
+# Prefix for all MW tools
+MW := $(BUSSUN)/deps/CodeWarrior/
+
+# Paths to each MW tool
+CC := $(MW)/mwcceppc.exe
+CXX := $(MW)/mwcceppc.exe
+#AS := $(MW)/mwasmeppc.exe
+
+# Path to Kamek linker
+KAMEK := $(BUSSUN)/deps/Kamek/Kamek.exe
+
+# Path to Petari (up-to-date with multiplayer)
+PETARI := $(BUSSUN)/Petari/
+
+# Path to each library we will include from Petari
+PATH_TO_GAME := $(PETARI)/include 
+PATH_TO_RFL := $(PETARI)/libs/RVLFaceLib/include
+PATH_TO_RVL := $(PETARI)/libs/RVL_SDK/include 
+PATH_TO_TRK := $(PETARI)/libs/MetroTRK/include 
+PATH_TO_RUNTIME := $(PETARI)/libs/Runtime/include 
+PATH_TO_MSL_C := $(PETARI)/libs/MSL_C/include 
+PATH_TO_MSL_CPP := $(PETARI)/libs/MSL_C++/include 
+PATH_TO_JSYS := $(PETARI)/libs/JSystem/include 
+PATH_TO_NW4R := $(PETARI)/libs/nw4r/include
+
+# Path to Bussun files (kamek header files, etc.)
+BUSSUN_INCLUDE := $(BUSSUN)/include/
+
+# Development settings
+
+# If set to `true` (case-sensitive), files will be regenerated
+# if any headers they include are modified. (default value is `false`)
+#COMPLETE_PREREQUISITES := true
+
+# If set to `true`, system includes (such as the headers from Petari)
+# will be included in the preqreuisites for each file. (default `false`)
+# SYSTEM_INCLUDE_PREREQUISITE := true
+

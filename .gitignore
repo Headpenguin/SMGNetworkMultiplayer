@@ -1,5 +1,5 @@
 .*.swp
-dependencies.mk
+config.mk
 ignored/*
 obj/*
 bin/*

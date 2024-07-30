@@ -1,10 +1,10 @@
-ifneq "$(wildcard dependencies.mk)" "dependencies.mk"
-$(error Error: could not find file `dependencies.mk`. Please make a copy of `dependencies.mk.template`, rename the copy to `dependencies.mk`, and adjust the copy as necessary before attempting to build again.)
+ifneq "$(wildcard config.mk)" "config.mk"
+$(error Error: could not find file `config.mk`. Please make a copy of `config.mk.template`, rename the copy to `config.mk`, and adjust the copy as necessary before attempting to build again.)
 endif
 
 # Get all of the locations for dependencies
 # Modify dependencies.mk to set the locations/commands for each tool
-include dependencies.mk
+include config.mk
 
 # Local prefixes
 INCLUDE_PREFIX := ./include/
@@ -101,7 +101,7 @@ $(OUTPUT_PREFIX)/CustomCode_USA.bin: $(O_FILES)
 ifeq ($(COMPLETE_PREREQUISITES), true) #1
 
 $(OBJ_PREFIX)/%.d: $(SOURCE_PREFIX)/%.c* | $(OBJ_PREFIX)
-	$(CC) $(INCLUDE) $(AUTO_GENERATE_FLAG) $< | sed 's/Z:\\/\//;s?^[^:]*:?$@ $(@:.d=.o):?;s/\\/\//g;s/\/\x0D$$/\\/' > $@
+	@$(CC) $(INCLUDE) $(AUTO_GENERATE_FLAG) $< | sed 's/Z:\\/\//;s?^[^:]*:?$@ $(@:.d=.o):?;s/\\/\//g;s/\/\x0D$$/\\/' > $@
 
 include $(O_FILES:.o=.d) $(OBJ_PREFIX)/interruptSubs.d
 

@@ -1,6 +1,10 @@
 #ifndef NET_H
 #define NET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <revolution/ipc/ipcclt.h>
 typedef unsigned long size_t;
 
@@ -40,4 +44,9 @@ long netread_async(long fd, void *data, size_t len, IOSIpcCb cb, void *cb_data);
 long netpoll_async(struct pollsd *sd, unsigned long nsd, long timeout, IOSIpcCb cb, void *cb_data);
 
 //long netshutdown(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

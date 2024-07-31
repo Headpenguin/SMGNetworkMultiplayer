@@ -1,6 +1,10 @@
 #ifndef ATOMIC_H
 #define ATOMIC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef unsigned long simplelock_t;
 typedef int BOOL;
 
@@ -21,5 +25,9 @@ inline BOOL simplelock_tryLock(register simplelock_t *pLock) {
 inline void simplelock_release(simplelock_t *pLock) {
     *pLock = 0;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

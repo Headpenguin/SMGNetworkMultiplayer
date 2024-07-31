@@ -1,6 +1,10 @@
 #ifndef PACKETS_H
 #define PACKETS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int BOOL;
 
 enum PACKET_DISC {
@@ -34,5 +38,9 @@ struct packet_transmission {
 };
 
 BOOL connected;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -41,13 +41,13 @@ INCLUDE := -nodefaults -i $(INCLUDE_PREFIX) -I- -i $(PATH_TO_GAME) -i $(PATH_TO_
 # Do not warn over consistent redeclarations, empty declarations
 WARNFLAGS := -w all -pragma "warning off (10122)" -pragma "warning off (10216)"
 
-CXXFLAGS := -c -Cpp_exceptions off -proc gekko -fp hard -ipa file -inline auto,level=2 -O4,s -rtti off -sdata 0 -sdata2 0 -align powerpc -enum int $(INCLUDE) $(WARNFLAGS)
+CXXFLAGS := -c -Cpp_exceptions off -proc gekko -fp hard -ipa file -inline auto,level=2 -O4,s -rtti off -sdata 0 -sdata2 0 -align powerpc -enum int $(INCLUDE)
 
-CFLAGS := -lang c99 $(CXXFLAGS)
+CFLAGS := -lang c99 $(CXXFLAGS) $(WARNFLAGS)
 
 #ASMFLAGS := -c -proc gecko
 
-O_FILES := net.o packets.o
+O_FILES := net.o packets.o multimodel.o
 
 O_FILES := $(foreach obj, $(O_FILES), $(OBJ_PREFIX)/$(obj))
 
@@ -85,7 +85,7 @@ $(RELEASE_PREFIX):
 	mkdir -p $(RELEASE_PREFIX)
 
 $(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.cpp | $(OBJ_PREFIX)
-	$(CXX) $(CXXLAGS) $(DEFINES) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<
 
 $(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.c | $(OBJ_PREFIX)
 	$(CC) $(CFLAGS) $(DEFINES) -c -o $@ $<

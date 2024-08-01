@@ -1,5 +1,5 @@
 .*.swp
 config.mk
-ignored/*
+ignore/*
 obj/*
 bin/*

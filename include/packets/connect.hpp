@@ -14,7 +14,7 @@ public:
     NetReturn netWriteToBuffer(void *buff, u32 len) const;
     static NetReturn netReadFromBuffer(Packet<_Connect> *out, const void *buff, u32 len);
     static inline Tag getTag() {return CONNECT;}
-    inline u32 getLength() const {return implementationSize;}
+    inline u32 getSize() const {return implementationSize;}
 };
 
 typedef Packet<_Connect> Connect;

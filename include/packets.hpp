@@ -6,6 +6,8 @@
 
 namespace Packets {
 
+static const u32 MAX_PACKET_SIZE = 128;
+
 enum Tag {
     CONNECT = 0,
     ACK
@@ -28,6 +30,9 @@ public:
     inline static NetReturn netReadFromBuffer(Packet<T> *out, const void *buff, u32 len) {
         return T::netReadFromBuffer(out, buff, len);
     }
+
+    inline static Tag getTag() {return T::getTag();}
+    inline u32 getSize() const {return T::getSize();}
 };
 
 }

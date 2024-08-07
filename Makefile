@@ -47,7 +47,7 @@ CFLAGS := -lang c99 $(CXXFLAGS) $(WARNFLAGS)
 
 #ASMFLAGS := -c -proc gecko
 
-O_FILES := net.o packets.o multimodel.o
+O_FILES := net.o packets.o multimodel.o transmission.o packetProcessor.o multiplayer.o
 
 O_FILES := $(foreach obj, $(O_FILES), $(OBJ_PREFIX)/$(obj))
 

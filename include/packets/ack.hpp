@@ -14,7 +14,7 @@ public:
     static NetReturn netReadFromBuffer(Packet<_Ack> *out, const void *buff, u32 len);
 
     static inline Tag getTag() {return ACK;}
-    inline u32 getLength() const {return implementationSize;}
+    inline u32 getSize() const {return implementationSize;}
 };
 
 typedef Packet<_Ack> Ack;

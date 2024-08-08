@@ -59,6 +59,8 @@ void calcAnim_ep(MarioAnimator *anim) {
         playerBaseMtx[i][0][3] = pos.position.x;
         playerBaseMtx[i][1][3] = pos.position.y;
         playerBaseMtx[i][2][3] = pos.position.z;
+
+        simplelock_release(&doubleBuffer.locks[buffIdx]);
     }
     
     Mtx tmpBaseMtx;

@@ -23,11 +23,11 @@ NetReturn Reader::process(IOSError err, u8 *&buffer) {
         }
         case READ:
         {
+            state = POLL;
             if(err >= 0) {
                 buffPosition += err;
                 buffer = readBuff;
 
-                state = POLL;
                 return NetReturn::Ok(err);
             }
             break;

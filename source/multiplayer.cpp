@@ -4,6 +4,14 @@
 #include <JSystem/JKernel/JKRHeap.hpp>
 #include <kamek/hooks.h>
 #include <Game/System/DrawSyncManager.hpp>
+#include <Game/Player/MarioActor.hpp>
+#include "packets/connect.hpp"
+#include "packets/playerPosition.hpp"
+
+extern kmSymbol init__10GameSystemFv;
+extern kmSymbol control__10MarioActorFv;
+
+namespace Multiplayer {
 
 static bool initialized;
 static bool connected;
@@ -12,6 +20,8 @@ static const u32 queryCooldown = 60;
 static u32 queryTimer = 0;
 
 //static int sockfd;
+
+MultiplayerInfo info;
 
 static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
@@ -29,7 +39,7 @@ static void init() {
 
         Transmission::Reader reader(16, buff, Packets::MAX_PACKET_SIZE, sd);
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);
-        transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected));
+        transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected, &info));
         transmitter.init();
         //sockfd = sd;
         initialized = true;
@@ -42,14 +52,13 @@ static void initWrapper(unsigned long a, long b) {
     init();
 }
 
-extern kmSymbol init__10GameSystemFv;
 
 kmCall(&init__10GameSystemFv + 0x94, initWrapper); // Replaces a call to `DrawSyncManager::start`
 
 //u8 test[8] __attribute__((aligned(32)));
 
 // Call this every frame
-static void updatePackets() {
+static void updatePackets(MarioActor *mario) {
     if(initialized) {
         //test[0] = 0xfe;
         if(queryTimer > 0) queryTimer--;
@@ -57,8 +66,8 @@ static void updatePackets() {
             queryTimer = queryCooldown;
             if(!connected) {
                 Packets::Connect connect;
-                connect.minor = 0;
-                connect.major = 0;
+                connect.minor = MAJOR;
+                connect.major = MINOR;
                 transmitter.addPacket(connect).err;
               /*  if(test[4]) {
                     netsendto(sockfd, test, 8, &serverAddr);
@@ -70,11 +79,22 @@ static void updatePackets() {
                 netsendto(sockfd, test, 8, &serverAddr);
             }*/
         }
+
+        if(connected) {
+            Packets::PlayerPosition pos;
+            pos.playerId = Packets::PlayerPosition::consoleId;
+            pos.position = mario->mPosition;
+            pos.velocity = mario->mVelocity;
+            pos.direction = mario->mRotation;
+            transmitter.addPacket(pos);
+        }
+
         transmitter.update();
     }
 }
 
-extern kmSymbol control__10MarioActorFv;
 
 kmBranch(&control__10MarioActorFv + 0x124, updatePackets);
+
+}
 

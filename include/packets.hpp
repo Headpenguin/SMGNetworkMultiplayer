@@ -10,7 +10,9 @@ static const u32 MAX_PACKET_SIZE = 128;
 
 enum Tag {
     CONNECT = 0,
-    ACK
+    ACK,
+    SERVER_INITIAL_RESPONSE,
+    PLAYER_POSITION
 };
 
 template<typename T>

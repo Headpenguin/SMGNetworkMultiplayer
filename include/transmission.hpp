@@ -188,18 +188,18 @@ public:
         return packet.netWriteToBuffer(buffer, size);
     }
 
-    int update() {
+    bool update() {
         if(state == CONCLUDE) {
             requestedAgain = false;
             reader.setStartTime();
-            if(!writer.reset()) return 1;
+            if(!writer.reset()) return false;
             state = WRITE;
             process(0);
-            return 0;
+            return true;
         }
         else {
             requestedAgain = true;
-            return 2;
+            return false;
         }
     }
 

@@ -5,10 +5,10 @@
 #include <JSystem/J3DGraphAnimator/J3DMtxBuffer.hpp>
 #include <kamek/hooks.h>
 
-static const u32 NUM_PLAYERS = 20;
+#include "multiplayer.hpp"
 
-J3DMtxBuffer playerBuffs[NUM_PLAYERS];
-Mtx playerBaseMtx[NUM_PLAYERS];
+J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
+Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
 
 void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffer *dstArray, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
@@ -19,7 +19,7 @@ void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffe
 
 J3DModelX* createMtxBuffers_ep(MarioActor *self) {
     J3DModelX *model = (J3DModelX*) MR::getJ3DModel(self);
-    createMtxBuffers(model->mModelData, model->_84, playerBuffs, NUM_PLAYERS); // inconsistent
+    createMtxBuffers(model->mModelData, model->_84, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1); // inconsistent
     return model;
 }
 
@@ -42,16 +42,30 @@ void calcAnim(J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuff
 void calcAnim_ep(MarioAnimator *anim) {
     J3DModel *model = anim->mActor->getJ3DModel();
     
-    for(u32 i = 0; i < NUM_PLAYERS; i++) {
-        PSMTXCopy(model->_24, playerBaseMtx[i]);
-        playerBaseMtx[i][1][3] += 1000.0f * i / NUM_PLAYERS - 500.0f;
+    for(u32 i = 0; i < Multiplayer::MAX_PLAYER_COUNT - 1; i++) {
+        //PSMTXCopy(model->_24, playerBaseMtx[i]);
+        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+
+        u32 buffIdx = Multiplayer::getMostRecentBuffer(i, Multiplayer::info.status);
+        Multiplayer::PlayerDoubleBuffer &doubleBuffer = Multiplayer::info.players[i];
+
+        if(!simplelock_tryLock(&doubleBuffer.locks[buffIdx])) {
+            buffIdx = buffIdx == 1 ? 0 : 1;
+            if(!simplelock_tryLock(&doubleBuffer.locks[buffIdx])) continue; // invalid state
+        }
+
+        const Packets::PlayerPosition &pos = doubleBuffer.pos[buffIdx];
+
+        playerBaseMtx[i][0][3] = pos.position.x;
+        playerBaseMtx[i][1][3] = pos.position.y;
+        playerBaseMtx[i][2][3] = pos.position.z;
     }
     
     Mtx tmpBaseMtx;
     PSMTXCopy(model->_24, tmpBaseMtx);
     J3DMtxBuffer *tmpMtxBuffer = model->_84;
     
-    calcAnim(model, playerBaseMtx, playerBuffs, NUM_PLAYERS);
+    calcAnim(model, playerBaseMtx, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1);
     
     PSMTXCopy(tmpBaseMtx, model->_24);
     model->_84 = tmpMtxBuffer;
@@ -79,7 +93,7 @@ void drawAll_ep(J3DModelX *model, J3DModel *model2) {
     //calcAnim(model, playerBaseMtx, playerBuffs, 1);
 
     //PSMTXCopy(tmpMtx, model->_24);
-    drawAll(model, playerBuffs, NUM_PLAYERS);
+    drawAll(model, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1);
     model->_84 = tmp;
 }
 

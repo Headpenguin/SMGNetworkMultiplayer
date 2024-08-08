@@ -2,7 +2,8 @@
 
 #include "packets/ack.hpp"
 #include "packets/connect.hpp"
-
+#include "packets/playerPosition.hpp"
+#include "packets/serverInitialResponse.hpp"
 
 namespace Packets {
 
@@ -20,10 +21,36 @@ namespace implementation {
         u32 seqNum;
     };
 
+    struct PlayerPosition {
+        u8 playerId;
+        u8 padding[3];
+        
+        f32 positionX;
+        f32 positionY;
+        f32 positionZ;
+
+        f32 velocityX;
+        f32 velocityY;
+        f32 velocityZ;
+
+        f32 directionX;
+        f32 directionY;
+        f32 directionZ;
+    };
+
+    struct ServerInitialResponse {
+        u32 major;
+        u32 minor;
+        u8 id;
+    };
+
 }
 
 const u32 _Connect::implementationSize = sizeof(implementation::Connect);
 const u32 _Ack::implementationSize = sizeof(implementation::Ack);
+const u32 _PlayerPosition::implementationSize = sizeof(implementation::PlayerPosition);
+Multiplayer::Id _PlayerPosition::consoleId;
+const u32 _ServerInitialResponse::implementationSize = sizeof(implementation::ServerInitialResponse);
 
 NetReturn _Connect::netWriteToBuffer(void *buff, u32 len) const {
     if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
@@ -54,6 +81,62 @@ NetReturn _Ack::netReadFromBuffer(Ack *out, const void *buff, u32 len) {
     if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
     const implementation::Ack *packet = (const implementation::Ack *)buff;
     out->seqNum = packet->seqNum;
+    return NetReturn::Ok(implementationSize);
+}
+
+NetReturn _ServerInitialResponse::netWriteToBuffer(void *buff, u32 len) const {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    implementation::ServerInitialResponse *packet = (implementation::ServerInitialResponse *)buff;
+    packet->major = major;
+    packet->minor = minor;
+    packet->id = id;
+    return NetReturn::Ok(implementationSize);
+}
+
+NetReturn _ServerInitialResponse::netReadFromBuffer(ServerInitialResponse *out, const void *buff, u32 len) {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    const implementation::ServerInitialResponse *packet = (const implementation::ServerInitialResponse *)buff;
+    out->major = packet->major;
+    out->minor = packet->minor;
+    out->id = packet->id;
+    return NetReturn::Ok(implementationSize);
+}
+
+NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    implementation::PlayerPosition *packet = (implementation::PlayerPosition *)buff;
+    
+    packet->playerId = playerId.toGlobalId();
+    
+    packet->padding[0] = 0;
+    packet->padding[1] = 0;
+    packet->padding[2] = 0;
+
+    packet->positionX = position.x;
+    packet->positionY = position.y;
+    packet->positionZ = position.z;
+
+    packet->velocityX = velocity.x;
+    packet->velocityY = velocity.y;
+    packet->velocityZ = velocity.z;
+
+    packet->directionX = direction.x;
+    packet->directionY = direction.y;
+    packet->directionZ = direction.z;
+
+    return NetReturn::Ok(implementationSize);
+}
+
+NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *buff, u32 len) {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    const implementation::PlayerPosition *packet = (const implementation::PlayerPosition *)buff;
+    
+    out->playerId = consoleId.fromGlobalId(packet->playerId);
+
+    out->position.set(packet->positionX, packet->positionY, packet->positionZ);
+    out->velocity.set(packet->velocityX, packet->velocityY, packet->velocityZ);
+    out->direction.set(packet->directionX, packet->directionY, packet->directionZ);
+
     return NetReturn::Ok(implementationSize);
 }
 

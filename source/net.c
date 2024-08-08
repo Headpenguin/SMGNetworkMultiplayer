@@ -287,7 +287,7 @@ static long netpoll_prep(struct pollsd *sd, unsigned long nsd, long timeout, lon
 }
 
 static struct pollsd netpoll_async_pollsd __attribute__((aligned(32)));
-static long netpoll_async_params[2] __attribute((aligned(32)));
+static long netpoll_async_params[2] __attribute__((aligned(32)));
 static struct netpoll_async_cbInfo {
     void *data;
     IOSIpcCb cb;

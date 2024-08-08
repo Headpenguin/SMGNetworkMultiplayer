@@ -7,11 +7,6 @@ void Reader::setStartTime() {
 }
 
 NetReturn Reader::process(IOSError err, u8 *&buffer) {
-    if(err < 0 && state != RESET) {
-        state = POLL;
-        return NetReturn::SystemError(-err);
-    }
-
     switch(state) {
 
         case RESET:
@@ -28,13 +23,19 @@ NetReturn Reader::process(IOSError err, u8 *&buffer) {
         }
         case READ:
         {
-            buffPosition += err;
-            buffer = readBuff;
+            if(err >= 0) {
+                buffPosition += err;
+                buffer = readBuff;
 
-            state = POLL;
-            return NetReturn::Ok(err);
+                state = POLL;
+                return NetReturn::Ok(err);
+            }
+            break;
         }
 
+    }
+    if(err < 0 && state != RESET) {
+        return NetReturn::SystemError(-err);
     }
 
     return NetReturn::Ok();
@@ -73,33 +74,37 @@ static u8* alignUp32(u8 *p) {
 
 NetReturn Writer::createTransmissionBuffer(u8 *&buffer, u32 len) {
     if(!simplelock_tryLock(&lock)) return NetReturn::Busy();
-    u8 *ret = alignUp32(sp);
+    u8 *ret = alignUp32(sp + sizeof sp);
     u8 *tmpSp = ret + len;
-    if(tmpSp + sizeof *sp >= buffEnd) {
+    if(tmpSp + sizeof sp >= buffEnd) {
         simplelock_release(&lock);
-        return NetReturn::NotEnoughSpace(tmpSp + sizeof *sp - buffEnd);
+        return NetReturn::NotEnoughSpace(tmpSp + sizeof sp - buffEnd);
     }
     
     *(u8 **)tmpSp = sp;
-    buffer = tmpSp;
+    buffer = ret;
+    sp = tmpSp;
     simplelock_release(&lock);
     return NetReturn::Ok();
 }
 
 NetReturn Writer::process(IOSError err) {
-    if(err < 0) return NetReturn::SystemError(err);
+    if(err < 0) return NetReturn::SystemError(-err);
     return NetReturn::Ok();
 }
 
+
 bool Writer::conclude() {
-    if(sp == buff) {
+    if(sp + sizeof(sp) == buff) {
         simplelock_release(&lock);
+     //   test[4] = 1;
         return true;
     }
     u8 *tmpSp = *(u8 **)sp;
-    u8 *packetBuff = alignUp32(tmpSp);
+    u8 *packetBuff = alignUp32(tmpSp + sizeof(sp));
     u32 len = sp - packetBuff;
-    netsendto_async(sd, packetBuff, len, addr, cb, cbData);
+    long res = netsendto_async(sd, packetBuff, len, addr, cb, cbData);
+    //test[3] = res < 0 ? -res : 0;
     sp = tmpSp;
     return false;
 }

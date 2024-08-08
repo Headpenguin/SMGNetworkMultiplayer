@@ -7,6 +7,7 @@
 #include <revolution/os.h>
 #include "atomic.h"
 
+//extern u8 test[8];
 namespace Transmission {
 
 class Reader {
@@ -35,9 +36,14 @@ public:
     // Align buffer to 32 bytes
     inline Reader(u8 period_ms, void *buffer, u32 bufferSize, int sockfd)
         : period_ms(period_ms),
+        periodEnd(0),
         readBuff((u8 *)buffer),
         buffPosition(readBuff),
-        buffSize(bufferSize)
+        buffSize(bufferSize),
+        cb(nullptr),
+        cbData(nullptr),
+        state(READ),
+        psdReady(false)
     {
         psd.sd = sockfd;
         psd.events = POLLIN;
@@ -76,16 +82,19 @@ public:
     inline Writer(u8 *buffer, u32 bufferSize, int sd, const sockaddr_in *addr)
         : buff(buffer),
         buffEnd(buff + bufferSize),
-        sp(buff),
+        sp(buff - sizeof sp),
+        cb(nullptr),
+        cbData(nullptr),
         addr(addr),
-        sd(sd) {}
+        sd(sd),
+        lock(0) {}
 
     inline void setCallback(IOSIpcCb _cb, void *data) {
         cb = _cb;
         cbData = data;
     }
 
-    bool reset() {return simplelock_tryLock(&lock);}
+    inline bool reset() {return simplelock_tryLock(&lock);}
     NetReturn createTransmissionBuffer(u8 *&buffer, u32 len);
     NetReturn process(IOSError err);
     bool conclude();
@@ -114,9 +123,11 @@ class Transmitter {
     }
 
     void process(IOSError err) {
+//        test[4] = 1;
         switch(state) {
             case WRITE:
             {
+//                test[5] = 1;
                 writer.process(err);
                 if(!writer.conclude()) break;
                 else {
@@ -128,6 +139,7 @@ class Transmitter {
             }
             case READ:
             {
+//                test[5] = 2;
                 u8 *transmissionBuffer = nullptr;
                 NetReturn res = reader.process(err, transmissionBuffer);
                 Packets::Tag tag;
@@ -143,6 +155,7 @@ class Transmitter {
                 //proceed to the the next state (no break is intentional)
             }
             case CONCLUDE:
+//                test[5] = 3;
                 if(requestedAgain) update();
                 break;
         }
@@ -154,8 +167,9 @@ public:
         : reader(_reader), 
         writer(_writer),
         packetProcessor(packetProcessor),
-        state(CONCLUDE)
-    {
+        state(CONCLUDE) {}
+
+    void init() {
         reader.setCallback(callback, (void*)this);
         writer.setCallback(callback, (void*)this);
     }
@@ -174,18 +188,18 @@ public:
         return packet.netWriteToBuffer(buffer, size);
     }
 
-    bool update() {
+    int update() {
         if(state == CONCLUDE) {
-            state = WRITE;
             requestedAgain = false;
             reader.setStartTime();
-            if(!writer.reset()) return false;
+            if(!writer.reset()) return 1;
+            state = WRITE;
             process(0);
-            return true;
+            return 0;
         }
         else {
             requestedAgain = true;
-            return false;
+            return 2;
         }
     }
 

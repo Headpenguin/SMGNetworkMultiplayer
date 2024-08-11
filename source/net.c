@@ -4,6 +4,8 @@ typedef unsigned long size_t;
 #include "errno.h"
 #include "atomic.h"
 
+extern void setDebugMsg__FUlUc(unsigned long, unsigned char);
+
 #include <revolution/os/OSCache.h>
 #include <revolution/os.h>
 #include <cstring>
@@ -198,9 +200,14 @@ static IOSError netsendto_async_cb(IOSError err, void *) {
 long netsendto_async(long fd, const void *data, size_t len, const struct sockaddr_in *addr, IOSIpcCb cb, void *cb_data) {
     long err;
     
-    if(!simplelock_tryLock(&netsendto_async_buflock)) {
-        //Failed to acquire lock
-        return -EAGAIN;
+    switch(simplelock_tryLock(&netsendto_async_buflock)) {
+        case TRY_LOCK_RESULT_OK:
+            break;
+        case TRY_LOCK_RESULT_FAIL:
+            //Failed to acquire lock
+            return -EWOULDBLOCK;
+        case TRY_LOCK_RESULT_INT:
+            return -EINTR;
     }
 
     err = netsendto_prep(fd, data, len, addr, netsendto_async_v, &netsendto_async_params);
@@ -264,8 +271,14 @@ static IOSError netread_async_cb(IOSError err, void *) {
 long netread_async(long fd, void *data, size_t len, IOSIpcCb cb, void *cb_data) {
     long err;
 
-    if(!simplelock_tryLock(&netread_async_bufLock)) {
-        return -EAGAIN;
+    switch(simplelock_tryLock(&netread_async_bufLock)) {
+        case TRY_LOCK_RESULT_OK:
+            break;
+        case TRY_LOCK_RESULT_FAIL:
+            //Failed to acquire lock
+            return -EWOULDBLOCK;
+        case TRY_LOCK_RESULT_INT:
+            return -EINTR;
     }
 
     err = netread_prep(fd, data, len, netread_async_v, netread_async_params);
@@ -306,7 +319,15 @@ static IOSError netpoll_async_cb(IOSError err, void *data_) {
 long netpoll_async(struct pollsd *sd, unsigned long nsd, long timeout, IOSIpcCb cb, void *cb_data) {
     long err;
 
-    if(!simplelock_tryLock(&netpoll_async_lock)) return -EAGAIN;
+    switch(simplelock_tryLock(&netpoll_async_lock)) {
+        case TRY_LOCK_RESULT_OK:
+            break;
+        case TRY_LOCK_RESULT_FAIL:
+            //Failed to acquire lock
+            return -EWOULDBLOCK;
+        case TRY_LOCK_RESULT_INT:
+            return -EINTR;
+    }
     
     err = netpoll_prep(sd, nsd, timeout, netpoll_async_params, &netpoll_async_pollsd);
     if(err < 0) return err;

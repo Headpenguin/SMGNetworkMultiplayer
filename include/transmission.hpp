@@ -6,9 +6,16 @@
 #include "net.h"
 #include <revolution/os.h>
 #include "atomic.h"
+#include "debug.hpp"
 
 //extern u8 test[8];
 namespace Transmission {
+
+enum ConcludeResult {
+    CONTINUE,
+    COMPLETE,
+    FAILURE
+};
 
 class Reader {
     u8 period_ms;
@@ -59,7 +66,7 @@ public:
     NetReturn process(IOSError err, u8 *&buffer);
     inline void informError(NetReturn err) {}
     // Returns true to indicate that the timer has expired
-    bool conclude();
+    ConcludeResult conclude();
     inline void reset() {state = RESET;}
 };
     
@@ -94,10 +101,10 @@ public:
         cbData = data;
     }
 
-    inline bool reset() {return simplelock_tryLock(&lock);}
+    inline bool reset() {return simplelock_tryLock(&lock) == TRY_LOCK_RESULT_OK;}
     NetReturn createTransmissionBuffer(u8 *&buffer, u32 len);
     NetReturn process(IOSError err);
-    bool conclude();
+    ConcludeResult conclude();
 };
 
 template<typename T>
@@ -122,18 +129,32 @@ class Transmitter {
         return 0;
     }
 
+    inline void setConclude() volatile {
+        state = CONCLUDE;
+    }
+    inline void resetRequestedAgain() volatile {
+        requestedAgain = false;
+    }
+
     void process(IOSError err) {
 //        test[4] = 1;
+        setDebugMsg(4, state);
         switch(state) {
             case WRITE:
             {
 //                test[5] = 1;
                 writer.process(err);
-                if(!writer.conclude()) break;
-                else {
+                ConcludeResult cres = writer.conclude();
+                if(cres == CONTINUE) break;
+                else if(cres == COMPLETE) {
                     state = READ;
                     err = 0;
                     reader.reset();
+                }
+                else if(cres == FAILURE) {
+                    setDebugMsg(5, 1);
+                    setConclude();
+                    resetRequestedAgain();
                 }
                 //proceed to the next state (no break is intentional)
             }
@@ -148,9 +169,15 @@ class Transmitter {
                     res = packetProcessor.process(tag, transmissionBuffer + sizeof tag, res.bytes - sizeof tag);
                     reader.informError(res);
                 }
-                if(!reader.conclude()) break;
-                else {
+                ConcludeResult cres = reader.conclude();
+                if(cres == CONTINUE) break;
+                else if(cres == COMPLETE) {
                     state = CONCLUDE;
+                }
+                else if(cres == FAILURE) {
+                    setDebugMsg(5, 1);
+                    setConclude();
+                    resetRequestedAgain();
                 }
                 //proceed to the the next state (no break is intentional)
             }
@@ -192,13 +219,16 @@ public:
         if(state == CONCLUDE) {
             requestedAgain = false;
             reader.setStartTime();
+            setDebugMsg(1, 1);
             if(!writer.reset()) return false;
             state = WRITE;
             process(0);
+            setDebugMsg(1, 0);
             return true;
         }
         else {
             requestedAgain = true;
+            setDebugMsg(1, 2);
             return false;
         }
     }

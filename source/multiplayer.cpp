@@ -7,6 +7,7 @@
 #include <Game/Player/MarioActor.hpp>
 #include "packets/connect.hpp"
 #include "packets/playerPosition.hpp"
+#include "debug.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
@@ -26,6 +27,7 @@ MultiplayerInfo info;
 static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
 const static sockaddr_in serverAddr = {8, 2, 5000, 0x0A000060};
+const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000060};
 
 static void init() {
     if(!initialized) {
@@ -43,6 +45,7 @@ static void init() {
         transmitter.init();
         //sockfd = sd;
         initialized = true;
+        setupDebug(sd, &debugAddr);
     }
 }
 
@@ -60,15 +63,17 @@ kmCall(&init__10GameSystemFv + 0x94, initWrapper); // Replaces a call to `DrawSy
 // Call this every frame
 static void updatePackets(MarioActor *mario) {
     if(initialized) {
+        setDebugMsg(0, 0xFE);
         //test[0] = 0xfe;
         if(queryTimer > 0) queryTimer--;
         else {
             queryTimer = queryCooldown;
+        sendDebugMsg();
             if(!connected) {
                 Packets::Connect connect;
                 connect.minor = MAJOR;
                 connect.major = MINOR;
-                transmitter.addPacket(connect).err;
+                setDebugMsg(2, transmitter.addPacket(connect).err);
               /*  if(test[4]) {
                     netsendto(sockfd, test, 8, &serverAddr);
                     test[4] = 0;
@@ -86,7 +91,7 @@ static void updatePackets(MarioActor *mario) {
             pos.position = mario->mPosition;
             pos.velocity = mario->mVelocity;
             pos.direction = mario->mRotation;
-            transmitter.addPacket(pos);
+            setDebugMsg(2, transmitter.addPacket(pos).err);
         }
 
         transmitter.update();

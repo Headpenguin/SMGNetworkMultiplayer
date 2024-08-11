@@ -6,6 +6,7 @@
 #include <kamek/hooks.h>
 
 #include "multiplayer.hpp"
+#include "debug.hpp"
 
 J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
 Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
@@ -29,6 +30,7 @@ kmCall(&initDrawAndModel__10MarioActorFv + 0x214, createMtxBuffers_ep);
 
 void calcAnim(J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
+        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
         PSMTXCopy(base[i], model->_24); // inefficient!
         model->_84 = buffs + i;
 
@@ -43,22 +45,28 @@ void calcAnim_ep(MarioAnimator *anim) {
     J3DModel *model = anim->mActor->getJ3DModel();
     
     for(u32 i = 0; i < Multiplayer::MAX_PLAYER_COUNT - 1; i++) {
-        //PSMTXCopy(model->_24, playerBaseMtx[i]);
         if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
 
         u32 buffIdx = Multiplayer::getMostRecentBuffer(i, Multiplayer::info.status);
         Multiplayer::PlayerDoubleBuffer &doubleBuffer = Multiplayer::info.players[i];
 
-        if(!simplelock_tryLock(&doubleBuffer.locks[buffIdx])) {
+        if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
             buffIdx = buffIdx == 1 ? 0 : 1;
-            if(!simplelock_tryLock(&doubleBuffer.locks[buffIdx])) continue; // invalid state
+            if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+                continue; // invalid state
+            }
         }
 
         const Packets::PlayerPosition &pos = doubleBuffer.pos[buffIdx];
+        PSMTXCopy(model->_24, playerBaseMtx[i]);
 
         playerBaseMtx[i][0][3] = pos.position.x;
         playerBaseMtx[i][1][3] = pos.position.y;
         playerBaseMtx[i][2][3] = pos.position.z;
+
+        setDebugMsgFloat(8, pos.position.x);
+        setDebugMsgFloat(12, pos.position.y);
+        setDebugMsgFloat(16, pos.position.z);
 
         simplelock_release(&doubleBuffer.locks[buffIdx]);
     }
@@ -81,6 +89,7 @@ kmCall(&calcAnim__10MarioActorFv + 0x2A4, calcAnim_ep);
 
 void drawAll(J3DModelX *model, J3DMtxBuffer *buffs, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
+        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
         model->_84 = buffs + i;
         model->prepareShapePackets();
         model->directDraw(nullptr);

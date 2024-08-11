@@ -14,11 +14,11 @@ typedef u32 PlayerBufferStatus;
 typedef u32 PlayerActivityStatus;
 
 inline u32 getMostRecentBuffer(u8 player, u32 bufferStatus) {
-    return (bufferStatus >> (player - 1)) & 1;
+    return bufferStatus >> player & 1;
 }
 
 inline u32 setMostRecentBuffer(u8 player, u32 buffer, u32 bufferStatus) {
-    return bufferStatus | (buffer << player);
+    return bufferStatus & ~(1 << player) | buffer << player;
 }
 
 struct PlayerDoubleBuffer {

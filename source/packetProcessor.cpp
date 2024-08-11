@@ -46,9 +46,11 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
             u32 buffIdx = Multiplayer::getMostRecentBuffer(id, players->status);
             buffIdx = buffIdx == 1 ? 0 : 1;
             
-            if(!simplelock_tryLock(&doubleBuff.locks[buffIdx])) {
+            if(simplelock_tryLock(&doubleBuff.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
                 buffIdx = buffIdx == 1 ? 0 : 1;
-                if(!simplelock_tryLock(&doubleBuff.locks[buffIdx])) return NetReturn::Busy(); // This really should not happen
+                if(!simplelock_tryLock(&doubleBuff.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+                    return NetReturn::Busy(); // This really should not happen
+                }
             }
 
             doubleBuff.pos[buffIdx] = pos;

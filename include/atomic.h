@@ -9,18 +9,18 @@ typedef unsigned long simplelock_t;
 
 typedef enum {
     TRY_LOCK_RESULT_OK = 0,
-    TRY_LOCK_RESULT_FAIL = 1,
-    TRY_LOCK_RESULT_INT = 2
+    TRY_LOCK_RESULT_INT = 1,
+    TRY_LOCK_RESULT_FAIL = 2
 } tryLockResult_t;
 // This works because of the updated the exception vectors
 inline tryLockResult_t simplelock_tryLock(register simplelock_t *pLock) {
     register tryLockResult_t val;
-    register simplelock_t one = 1;
+    register simplelock_t one = 2;
     asm {
         lwarx val, 0, pLock
         stwcx. one, 0, pLock
         beq+ success //we expect to succeed (an interrupt is very unlikely)
-        li val, 2
+        addi val, val, 1 // 0->INT, 1->FAIL
         success:
     };
     return val;

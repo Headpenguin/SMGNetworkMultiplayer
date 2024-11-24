@@ -3,6 +3,7 @@
 #include <Game/Player/J3DModelX.hpp>
 #include <Game/Util/CameraUtil.hpp>
 #include <JSystem/J3DGraphAnimator/J3DMtxBuffer.hpp>
+#include <JSystem/J3DGraphAnimator/J3DJoint.hpp>
 #include <kamek/hooks.h>
 
 #include "multiplayer.hpp"
@@ -36,6 +37,7 @@ void calcAnim(J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuff
 
         model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
         model->calcWeightEnvelopeMtx();
+        buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
         DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
     }
@@ -130,12 +132,18 @@ extern kmSymbol calcAnim__10MarioActorFv;
 kmCall(&calcAnim__10MarioActorFv + 0x2A4, calcAnim_ep);
 
 void drawAll(J3DModelX *model, J3DMtxBuffer *buffs, u32 numBuffs) {
+    MR::showJoint(model, "Face0");
+    MR::showJoint(model, "HandL0");
+    MR::showJoint(model, "HandR0");
     for(u32 i = 0; i < numBuffs; i++) {
         if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
         model->_84 = buffs + i;
         model->prepareShapePackets();
         model->directDraw(nullptr);
     }
+    MR::hideJoint(model, "Face0");
+    MR::hideJoint(model, "HandL0");
+    MR::hideJoint(model, "HandR0");
 }
 
 void drawAll_ep(J3DModelX *model, J3DModel *model2) {

@@ -33,9 +33,9 @@ namespace implementation {
         f32 velocityY;
         f32 velocityZ;
 
-        f32 directionX;
-        f32 directionY;
-        f32 directionZ;
+        f32 directionXx; // Base Matrix, column 1 row 1 (+ 3.0f if row 3 is negative)
+        f32 directionXy; // Base Matrix, column 1 row 2
+        f32 directionYxz; // ^Y*(^i|^j)x^X (+ 3.0f if Y*rejection is negative)
     };
 
     struct ServerInitialResponse {
@@ -120,9 +120,9 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
     packet->velocityY = velocity.y;
     packet->velocityZ = velocity.z;
 
-    packet->directionX = direction.x;
-    packet->directionY = direction.y;
-    packet->directionZ = direction.z;
+    packet->directionXx = direction.x;
+    packet->directionXy = direction.y;
+    packet->directionYxz = direction.z;
 
     return NetReturn::Ok(implementationSize);
 }
@@ -135,7 +135,7 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
 
     out->position.set(packet->positionX, packet->positionY, packet->positionZ);
     out->velocity.set(packet->velocityX, packet->velocityY, packet->velocityZ);
-    out->direction.set(packet->directionX, packet->directionY, packet->directionZ);
+    out->direction.set(packet->directionXx, packet->directionXy, packet->directionYxz);
 
     return NetReturn::Ok(implementationSize);
 }

@@ -57,18 +57,60 @@ void calcAnim_ep(MarioAnimator *anim) {
             }
         }
 
-        const Packets::PlayerPosition &pos = doubleBuffer.pos[buffIdx];
-        PSMTXCopy(model->_24, playerBaseMtx[i]);
+        const Packets::PlayerPosition pos = doubleBuffer.pos[buffIdx];
+        
+        simplelock_release(&doubleBuffer.locks[buffIdx]);
+        
+        Mtx &baseMtx = playerBaseMtx[i];
 
-        playerBaseMtx[i][0][3] = pos.position.x;
-        playerBaseMtx[i][1][3] = pos.position.y;
-        playerBaseMtx[i][2][3] = pos.position.z;
+        baseMtx[0][3] = pos.position.x;
+        baseMtx[1][3] = pos.position.y;
+        baseMtx[2][3] = pos.position.z;
+
+        bool isXzNegative = pos.direction.x > 1.5f;
+        bool isYOrthoNegative = pos.direction.z > 1.5f;
+        TVec3f X(pos.direction.x - (isXzNegative ? 3.0f : 0.0f), pos.direction.y, 0.0f);
+        
+        f32 tmp = 1.0f - X.x * X.x - X.y * X.y;
+        X.z = sqrt(tmp < 0.0f ? 0.0f : tmp);
+        if(isXzNegative) X.z = -X.z;
+
+        TVec3f Y;
+        TVec3f v(0.0f, 0.0f, 0.0f); // (i|j) x X
+        TVec3f u;
+
+        if(X.x < 0.99f && X.x > -0.99f) {
+            v.z = X.y;
+            v.y = -X.z;
+        }
+        else {
+            v.x = X.z;
+            v.z = -X.x;
+        }
+        f32 z = pos.direction.z - (isYOrthoNegative ? 3.0f : 0.0f);
+        PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
+        v.setLength(z);
+        tmp = 1 - z*z;
+        u.setLength(sqrt(tmp < 0.0f ? 0.0f : tmp));
+        if(isYOrthoNegative) u = -u;
+        Y = u + v;
+        TVec3f Z;
+        PSVECCrossProduct(X.toCVec(), Y.toCVec(), Z.toVec());
+        
+        baseMtx[0][0] = X.x;
+        baseMtx[0][1] = Y.x;
+        baseMtx[0][2] = Z.x;
+        baseMtx[1][0] = X.y;
+        baseMtx[1][1] = Y.y;
+        baseMtx[1][2] = Z.y;
+        baseMtx[2][0] = X.z;
+        baseMtx[2][1] = Y.z;
+        baseMtx[2][2] = Z.z;
 
         setDebugMsgFloat(8, pos.position.x);
         setDebugMsgFloat(12, pos.position.y);
         setDebugMsgFloat(16, pos.position.z);
 
-        simplelock_release(&doubleBuffer.locks[buffIdx]);
     }
     
     Mtx tmpBaseMtx;

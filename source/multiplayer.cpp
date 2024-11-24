@@ -62,6 +62,7 @@ kmCall(&init__10GameSystemFv + 0x94, initWrapper); // Replaces a call to `DrawSy
 
 // Call this every frame
 static void updatePackets(MarioActor *mario) {
+    mario->control2();
     if(initialized) {
         setDebugMsg(0, 0xFE);
         //test[0] = 0xfe;
@@ -90,7 +91,31 @@ static void updatePackets(MarioActor *mario) {
             pos.playerId = Packets::PlayerPosition::consoleId;
             pos.position = mario->mPosition;
             pos.velocity = mario->mVelocity;
-            pos.direction = mario->mRotation;
+            //pos.direction = mario->mRotation;
+            const Mtx &baseMtx = mario->getJ3DModel()->_24;
+            TVec3f X(baseMtx[0][0], baseMtx[1][0], baseMtx[2][0]);
+            f32 magx = PSVECMag(X.toCVec());
+
+            f32 r = 1 / magx;
+            pos.direction.x = X.x * r;
+            pos.direction.y = X.y * r;
+            if(X.z < 0.0f) pos.direction.x += 3.0f;
+            TVec3f v(0.0f, 0.0f, 0.0f), u, y(baseMtx[0][1], baseMtx[1][1], baseMtx[2][1]);
+            if(X.x < 0.99f && X.x > -0.99f) {
+                v.z = X.y;
+                v.y = -X.z;
+                v.setLength(1);
+                pos.direction.z = (v.z * baseMtx[2][1] + v.y * baseMtx[1][1]) * r;
+            }
+            else {
+                v.x = X.z;
+                v.z = -X.x;
+                v.setLength(1);
+                pos.direction.z = (v.x * baseMtx[0][1] + v.z * baseMtx[2][1]) * r;
+            }
+            PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
+            if(y.dot(u) < 0.0f) pos.direction.z += 3.0f;
+
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }
 
@@ -99,7 +124,7 @@ static void updatePackets(MarioActor *mario) {
 }
 
 
-kmBranch(&control__10MarioActorFv + 0x124, updatePackets);
+kmCall(&control__10MarioActorFv + 0x100, updatePackets);
 
 }
 

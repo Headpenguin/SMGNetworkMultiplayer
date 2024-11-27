@@ -5,6 +5,7 @@
 #include <kamek/hooks.h>
 #include <Game/System/DrawSyncManager.hpp>
 #include <Game/Player/MarioActor.hpp>
+#include <Game/Player/MarioAnimator.hpp>
 #include "packets/connect.hpp"
 #include "packets/playerPosition.hpp"
 #include "debug.hpp"
@@ -115,6 +116,18 @@ static void updatePackets(MarioActor *mario) {
             }
             PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
             if(y.dot(u) < 0.0f) pos.direction.z += 3.0f;
+
+            const XanimePlayer &xanime = *mario->mMarioAnim->mXanimePlayer;
+            s32 diff = xanime.mCurrentAnimation - xanime.mResourceTable->_10;
+            if(diff < 0x134 && diff >= 0) {
+                pos.currAnmIdx = diff;
+            }
+            else pos.currAnmIdx = -1;
+            diff = xanime.mCurrentAnimation - xanime.mResourceTable->_10;
+            if(diff < 0x134 && diff >= 0) {
+                pos.defaultAnmIdx = diff;
+            }
+            else pos.defaultAnmIdx = -1;
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }

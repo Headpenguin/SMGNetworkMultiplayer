@@ -4,6 +4,7 @@
 #include <Game/Util/CameraUtil.hpp>
 #include <JSystem/J3DGraphAnimator/J3DMtxBuffer.hpp>
 #include <JSystem/J3DGraphAnimator/J3DJoint.hpp>
+#include <JSystem/J3DGraphBase/J3DSys.hpp>
 #include <kamek/hooks.h>
 
 #include "multiplayer.hpp"
@@ -11,6 +12,13 @@
 
 J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
 Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
+
+struct XanimeWrapper {u32 raw[sizeof(XanimePlayer) / sizeof(u32)];};
+static XanimeWrapper xanimeWrapper[Multiplayer::MAX_PLAYER_COUNT - 1];
+static XanimeWrapper xanimeUpperWrapper[Multiplayer::MAX_PLAYER_COUNT - 1];
+
+static XanimePlayer *playerXanimes = (XanimePlayer *)xanimeWrapper;
+static XanimePlayer *playerUpperXanimes = (XanimePlayer *)xanimeUpperWrapper;
 
 void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffer *dstArray, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
@@ -29,9 +37,35 @@ extern kmSymbol initDrawAndModel__10MarioActorFv;
 // Replaces `LiveActor::getJ3DModel` immediately after `LiveActor::initModelManagerWithAnm`
 kmCall(&initDrawAndModel__10MarioActorFv + 0x214, createMtxBuffers_ep);
 
-void calcAnim(J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
+void createXanimes(MarioAnimator *anim) {
+    anim->init();
+
+    for(u32 i = 0; i < Multiplayer::MAX_PLAYER_COUNT - 1; i++) {
+        playerXanimes[i] = XanimePlayer(MR::getJ3DModel(anim->mActor), anim->mResourceTable);
+        playerXanimes->changeAnimation("\x97\x8e\x89\xba"); 
+        playerXanimes->setDefaultAnimation("\x97\x8e\x89\xba");
+        playerXanimes[i].mCore->enableJointTransform(MR::getJ3DModel(anim->mActor)->mModelData);
+
+
+//        playerUpperXanimes[i] = XanimePlayer(MR::getJ3DModel(anim->mActor), anim->mResourceTable);
+//        playerUpperXanimes[i].mCore->enableJointTransform(MR::getJ3DModel(anim->mActor)->mModelData);
+    }
+}
+extern kmSymbol __ct__13MarioAnimatorFP10MarioActor;
+kmCall(&__ct__13MarioAnimatorFP10MarioActor + 0x24, createXanimes);
+
+void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
+    j3dSys.mCurrentModel = model;
     for(u32 i = 0; i < numBuffs; i++) {
         if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+        XanimePlayer *currXanime = &playerXanimes[i];
+        if(currXanime->mModel != model) currXanime->setModel(model);
+        currXanime->updateBeforeMovement();
+        currXanime->updateAfterMovement();
+        u32 idx = MR::getJointIndex(anim->mActor, "Spine1");
+        model->mModelData->mJointTree.mJointsByIdx[idx]->mMtxCalc = currXanime->mCore;
+        currXanime->calcAnm(0);
+        currXanime->mCore->_6 = 1;
         PSMTXCopy(base[i], model->_24); // inefficient!
         model->_84 = buffs + i;
 
@@ -39,8 +73,19 @@ void calcAnim(J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuff
         model->calcWeightEnvelopeMtx();
         buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
+        currXanime->mCore->_6 = 3;
+        model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
+        model->calcWeightEnvelopeMtx();
+        buffs[i].calcNrmMtx();
+        buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
         DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
+        DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
+        currXanime->clearAnm(0);
     }
+}
+
+XanimeGroupInfo* getGroupInfoFromIdx(const XanimePlayer &xanime, s32 idx) {
+    return idx >= 0 ? xanime.mResourceTable->_10 + idx : nullptr;
 }
 
 void calcAnim_ep(MarioAnimator *anim) {
@@ -109,9 +154,19 @@ void calcAnim_ep(MarioAnimator *anim) {
         baseMtx[2][1] = Y.z;
         baseMtx[2][2] = Z.z;
 
-        setDebugMsgFloat(8, pos.position.x);
         setDebugMsgFloat(12, pos.position.y);
         setDebugMsgFloat(16, pos.position.z);
+
+        XanimeGroupInfo *info = getGroupInfoFromIdx(playerXanimes[i], pos.currAnmIdx);
+        setDebugMsg(8, 0);
+        if(info) playerXanimes[i].changeAnimation(info);
+        else setDebugMsg(8, 1);
+        
+        info = getGroupInfoFromIdx(playerXanimes[i], pos.defaultAnmIdx);
+        setDebugMsg(9, 0);
+        if(info) playerXanimes[i].mDefaultAnimation = info;
+        else setDebugMsg(9, 1);
+
 
     }
     
@@ -119,7 +174,7 @@ void calcAnim_ep(MarioAnimator *anim) {
     PSMTXCopy(model->_24, tmpBaseMtx);
     J3DMtxBuffer *tmpMtxBuffer = model->_84;
     
-    calcAnim(model, playerBaseMtx, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1);
+    calcAnim(anim, model, playerBaseMtx, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1);
     
     PSMTXCopy(tmpBaseMtx, model->_24);
     model->_84 = tmpMtxBuffer;

@@ -65,14 +65,14 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         u32 idx = MR::getJointIndex(anim->mActor, "Spine1");
         model->mModelData->mJointTree.mJointsByIdx[idx]->mMtxCalc = currXanime->mCore;
         currXanime->calcAnm(0);
-        currXanime->mCore->_6 = 1;
         PSMTXCopy(base[i], model->_24); // inefficient!
         model->_84 = buffs + i;
+        /*currXanime->mCore->_6 = 1;
 
         model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
         model->calcWeightEnvelopeMtx();
         buffs[i].calcNrmMtx();
-        buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
+        buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);*/
         currXanime->mCore->_6 = 3;
         model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
         model->calcWeightEnvelopeMtx();

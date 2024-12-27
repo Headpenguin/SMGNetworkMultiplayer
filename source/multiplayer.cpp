@@ -27,7 +27,7 @@ MultiplayerInfo info;
 
 static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
-const static sockaddr_in serverAddr = {8, 2, 5000, 0x0A000060};
+const static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
 const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000060};
 
 static void init() {

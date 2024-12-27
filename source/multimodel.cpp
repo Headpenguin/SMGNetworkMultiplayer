@@ -58,15 +58,17 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
     j3dSys.mCurrentModel = model;
     for(u32 i = 0; i < numBuffs; i++) {
         if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+        
+        PSMTXCopy(base[i], model->_24); // inefficient!
+        model->_84 = buffs + i;
+        
         XanimePlayer *currXanime = &playerXanimes[i];
         if(currXanime->mModel != model) currXanime->setModel(model);
         currXanime->updateBeforeMovement();
         currXanime->updateAfterMovement();
         u32 idx = MR::getJointIndex(anim->mActor, "Spine1");
-        model->mModelData->mJointTree.mJointsByIdx[idx]->mMtxCalc = currXanime->mCore;
+        model->mModelData->mJointTree.mJointsByIdx[idx]->mMtxCalc = nullptr;
         currXanime->calcAnm(0);
-        PSMTXCopy(base[i], model->_24); // inefficient!
-        model->_84 = buffs + i;
         /*currXanime->mCore->_6 = 1;
 
         model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?

@@ -18,6 +18,7 @@ public:
     TVec3f direction;
     s32 currAnmIdx;
     s32 defaultAnmIdx;
+    f32 anmSpeed;
     
     NetReturn netWriteToBuffer(void *buff, u32 len) const;
     static NetReturn netReadFromBuffer(Packet<_PlayerPosition> *out, const void *buff, u32 len);

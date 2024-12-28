@@ -39,6 +39,7 @@ namespace implementation {
         
         s32 currAnmIdx;
         s32 defaultAnmIdx;
+        f32 anmSpeed;
     };
 
     struct ServerInitialResponse {
@@ -129,6 +130,7 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
 
     packet->currAnmIdx = currAnmIdx;
     packet->defaultAnmIdx = defaultAnmIdx;
+    packet->anmSpeed = anmSpeed;
 
     return NetReturn::Ok(implementationSize);
 }
@@ -145,6 +147,7 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
 
     out->currAnmIdx = packet->currAnmIdx;
     out->defaultAnmIdx = packet->defaultAnmIdx;
+    out->anmSpeed = packet->anmSpeed;
 
     return NetReturn::Ok(implementationSize);
 }

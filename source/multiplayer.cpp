@@ -129,6 +129,8 @@ static void updatePackets(MarioActor *mario) {
             }
             else pos.defaultAnmIdx = -1;
 
+            pos.anmSpeed = xanime._20->mSpeed;
+
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }
 

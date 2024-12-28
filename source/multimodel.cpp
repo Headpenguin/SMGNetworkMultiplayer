@@ -168,7 +168,8 @@ void calcAnim_ep(MarioAnimator *anim) {
         setDebugMsg(9, 0);
         if(info) playerXanimes[i].mDefaultAnimation = info;
         else setDebugMsg(9, 1);
-
+        
+        playerXanimes[i]._20->mSpeed = pos.anmSpeed;
 
     }
     

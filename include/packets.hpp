@@ -12,7 +12,27 @@ enum Tag {
     CONNECT = 0,
     ACK,
     SERVER_INITIAL_RESPONSE,
-    PLAYER_POSITION
+    PLAYER_POSITION,
+    TIME_QUERY,
+    TIME_RESPONSE
+};
+
+namespace implementation {
+    class ReliablePacket;
+};
+
+class ReliablePacketCode {
+protected:
+    friend class implementation::ReliablePacket;
+    u32 seqNum;
+public:
+    inline ReliablePacketCode() {}
+    inline ReliablePacketCode(u32 seqNum) : seqNum(seqNum) {}
+
+    // THIS FUNCTION MUST NOT REQUIRE A THREADED CONTEXT
+    inline bool verify(const ReliablePacketCode &reliablePacketCode) const {
+        return seqNum == reliablePacketCode.seqNum;
+    }
 };
 
 template<typename T>

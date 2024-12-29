@@ -3,6 +3,8 @@
 #include "packets/ack.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
+#include "packets/beacon.hpp"
+#include "beacon.hpp"
 
 namespace Packets {
 
@@ -60,6 +62,19 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
             players->status = Multiplayer::setMostRecentBuffer(id, buffIdx, players->status);
             players->activityStatus = Multiplayer::setMostRecentBuffer(id, 1, players->activityStatus);
 
+            break;
+        }
+        case TIME_QUERY:
+        {
+            break;
+        }
+        case TIME_RESPONSE:
+        {
+            TimeResponse trp;
+            NetReturn res = TimeResponse::netReadFromBuffer(&trp, buffer, len);
+            if(res.err != NetReturn::OK) return res;
+
+            Timestamps::beacon.process(trp);
             break;
         }
     }

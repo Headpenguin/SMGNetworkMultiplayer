@@ -13,7 +13,7 @@ typedef enum {
     TRY_LOCK_RESULT_FAIL = 2
 } tryLockResult_t;
 // This works because of the updated the exception vectors
-inline tryLockResult_t simplelock_tryLock(register simplelock_t *pLock) {
+inline tryLockResult_t simplelock_tryLock(register volatile simplelock_t *pLock) {
     register tryLockResult_t val;
     register simplelock_t one = 2;
     asm {
@@ -26,13 +26,13 @@ inline tryLockResult_t simplelock_tryLock(register simplelock_t *pLock) {
     return val;
 }
 
-inline tryLockResult_t simplelock_tryLockLoop(simplelock_t *pLock) {
+inline tryLockResult_t simplelock_tryLockLoop(volatile simplelock_t *pLock) {
     tryLockResult_t ret;
     while((ret = simplelock_tryLock(pLock)) == TRY_LOCK_RESULT_INT);
     return ret;
 }
 
-inline void simplelock_release(simplelock_t *pLock) {
+inline void simplelock_release(volatile simplelock_t *pLock) {
     *pLock = 0;
 }
 

@@ -4,10 +4,26 @@
 #include "packets/connect.hpp"
 #include "packets/playerPosition.hpp"
 #include "packets/serverInitialResponse.hpp"
+#include "packets/beacon.hpp"
 
 namespace Packets {
 
 namespace implementation {
+
+    template<typename T>
+    class PacketTimestamp {
+        u32 tMs;
+     public:
+        PacketTimestamp(const T &t) : tMs(T.t.timeMs) {}
+    };
+
+    class ReliablePacket {
+    protected:
+        u32 seqNum;
+    public:
+        ReliablePacket(const ReliablePacketCode &check) : seqNum(check.seqNum) {}
+        ReliablePacketCode toCode() const {return ReliablePacketCode(seqNum);}
+    };
 
     static const u64 CONNECT_MAGIC = 0x436F6E6E65637400; // "Connect"
     
@@ -16,7 +32,7 @@ namespace implementation {
         u32 major;
         u32 minor;
     };
-    
+
     struct Ack {
         u32 seqNum;
     };
@@ -47,14 +63,27 @@ namespace implementation {
         u32 minor;
         u8 id;
     };
+    
+    struct TimeQuery {
+        u32 timeMs;
+        ReliablePacket check;
+    };
+    
+    struct TimeResponse {
+        u32 timeMs;
+        ReliablePacket check;
+    };
 
-}
+};
 
 const u32 _Connect::implementationSize = sizeof(implementation::Connect);
 const u32 _Ack::implementationSize = sizeof(implementation::Ack);
 const u32 _PlayerPosition::implementationSize = sizeof(implementation::PlayerPosition);
 Multiplayer::Id _PlayerPosition::consoleId;
 const u32 _ServerInitialResponse::implementationSize = sizeof(implementation::ServerInitialResponse);
+const u32 _TimeQuery::implementationSize = sizeof(implementation::TimeQuery);
+u32 _TimeQuery::seqNum = 0;
+const u32 _TimeResponse::implementationSize = sizeof(implementation::TimeResponse);
 
 NetReturn _Connect::netWriteToBuffer(void *buff, u32 len) const {
     if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
@@ -152,5 +181,30 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
     return NetReturn::Ok(implementationSize);
 }
 
+NetReturn _TimeQuery::netWriteToBuffer(void *buff, u32 len) const {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    implementation::TimeQuery *packet = (implementation::TimeQuery *)buff;
+    packet->timeMs = timeMs;
+    packet->check = implementation::ReliablePacket(check);
+    return NetReturn::Ok(implementationSize);
 }
 
+NetReturn _TimeQuery::netReadFromBuffer(TimeQuery *, const void *, u32) {
+    return NetReturn::InvalidData();
+}
+
+NetReturn _TimeResponse::netWriteToBuffer(void *, u32) const {
+    return NetReturn::SystemError(0xDEAD); // unreachable
+}
+
+NetReturn _TimeResponse::netReadFromBuffer(TimeResponse *out, const void *buff, u32 len) {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    const implementation::TimeResponse *packet = (const implementation::TimeResponse *)buff;
+    out->timeMs = packet->timeMs;
+    out->check = packet->check.toCode();
+    return NetReturn::Ok(implementationSize);
+}
+
+
+
+}

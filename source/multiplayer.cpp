@@ -8,10 +8,15 @@
 #include <Game/Player/MarioAnimator.hpp>
 #include "packets/connect.hpp"
 #include "packets/playerPosition.hpp"
+#include "beacon.hpp"
 #include "debug.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
+
+namespace Timestamps {
+    Beacon beacon;
+};
 
 namespace Multiplayer {
 
@@ -43,6 +48,7 @@ static void init() {
         Transmission::Reader reader(16, buff, Packets::MAX_PACKET_SIZE, sd);
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);
         transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected, &info));
+        Timestamps::beacon = Timestamps::Beacon();
         transmitter.init();
         //sockfd = sd;
         initialized = true;
@@ -133,6 +139,8 @@ static void updatePackets(MarioActor *mario) {
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }
+
+        Timestamps::beacon.update(transmitter);
 
         transmitter.update();
     }

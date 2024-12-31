@@ -10,6 +10,8 @@
 #include "multiplayer.hpp"
 #include "debug.hpp"
 
+static const BASE_INTERPOLATE_EPSILON = 0.1f;
+
 J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
 Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
 
@@ -89,6 +91,66 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
 XanimeGroupInfo* getGroupInfoFromIdx(const XanimePlayer &xanime, s32 idx) {
     return idx >= 0 ? xanime.mResourceTable->_10 + idx : nullptr;
 }
+/*
+class VectorInterpolation {
+    TVec3f curr, step;
+public:
+    VectorInterpolation(TVec3f curr, TVec3f end, u32 time) : curr(curr), step((end - curr) / time) {}
+    void update(f32 dt) {
+        curr += step * dt;
+    }
+    TVec3f get() const {return curr;}
+};
+
+class AlignmentPlan {
+    f32 acc;
+    u32 timeMaxFrames;
+
+    
+public:
+
+};
+*/
+/*class VectorInterpolation {
+    f32 currMag;
+    f32 endMag;
+    f32 step;
+    TVec3f currDir;
+    TVec3f endDir;
+
+    f32 dirStep;
+    TVec3f endDirStepMag;
+
+    f32 magEpsilon;
+    f32 dirEpsilon;
+
+public:
+    // t is in iterations
+    VectorInterpolation(const TVec3f &start, const TVec3f &end, f32 t) 
+        : currMag(PSVecMag(start.toCVec())), endMag(PSVecMag(end.toCVec())), 
+        step((endMag - currMag) / t), currDir(start * (1.0f / currMag))
+    {
+        endDir = end * (1.0f / endMag);
+        dirStepMag = acos(endDir.dot(currDir)) * PI;
+        endDirStepMag = dirStepMag;
+        
+        magEpsilon = step * BASE_INTERPOLATE_EPSILON;
+        dirEpsilon = dirStepMag * BASE_INTERPOLATE_EPSILON;
+    }
+    void update() {
+        if(MR::isNearZero(currMag - endMag, magEpsilon)) currMag += step;
+        if(currDir.epsilonEquals(endDir, dirEpsilon)) {
+            TVec3f stepDir;
+            JMAVECScaleAdd(endDirStepMag.toCVec(), currDir.toCVec(), stepDir.toVec(), -currDir.dot(endDirStepMag));
+            currDir += stepDir;
+            currDir.setLength(1.0f);
+        }
+
+    }
+    TVec3f get() const {
+        return currDir * currMag;
+    }
+};*/
 
 void calcAnim_ep(MarioAnimator *anim) {
     J3DModel *model = anim->mActor->getJ3DModel();
@@ -106,7 +168,7 @@ void calcAnim_ep(MarioAnimator *anim) {
             }
         }
 
-        const Packets::PlayerPosition pos = doubleBuffer.pos[buffIdx];
+        const Packets::PlayerPosition pos = doubleBuffer.pos.getCurrentFrame();
         
         simplelock_release(&doubleBuffer.locks[buffIdx]);
         

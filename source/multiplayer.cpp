@@ -20,6 +20,26 @@ namespace Timestamps {
 
 namespace Multiplayer {
 
+s32 PlayerQueue::determineBufPosition() const {
+    if(!beacon.isInit()) return -1;
+    ServerTimestamp now = Timestamps::beacon.convertToServer(Timestamps::beacon.now());
+    now.t.timeMs -= 167;
+    return (now.t.timeMs / 16.67f) % 10;
+}
+
+const Packets::PlayerPosition& PlayerQueue::getCurrentFrame() {
+    
+}
+
+void PlayerQueue::addPosition(const Packets::PlayerPosition &p) {
+    pos[determineBufPosition()] = p;
+    if(!beacon.isInit() && p.timestamp.t.timeMs > fallbackPos.timeMs) fallbackPos = p;
+    else {
+        ServerTimestamp now = Timestamps::beacon.convertToServer(Timestamps::beacon.now());
+        now.t.timeMs -= 167;
+        if(p.timestamp.t.timeMs > fallbackPos.timeMs && p.timestamp.t.timeMs <= now.t.timeMs) fallbackPos = p;
+}
+
 static bool initialized;
 static bool connected;
 
@@ -139,6 +159,10 @@ static void updatePackets(MarioActor *mario) {
             else pos.defaultAnmIdx = -1;
 
             pos.anmSpeed = xanime._20->mSpeed;
+
+            pos.timestamp = Timestamps::beacon.convertToServer(
+                Timestamps::beacon.isInit() ? Timestamps::beacon::now()
+                : Timestamps::beacon::now());
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }

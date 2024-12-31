@@ -16,7 +16,13 @@ namespace implementation {
         u32 tMs;
      public:
         PacketTimestamp(const Timestamps::ClockboundTimestamp<T> &t) : tMs(t.timeMs) {}
+        Timestamps::ClockboundTimestamp<T> toHL() const {
+            Timestamps::ClockboundTimestamp<T> ret = {tMs};
+            return ret;
+        }
     };
+
+    typedef PacketTimestamp<Timestamps::ServerClockTag> ServerPacketTimestamp;
 
     class ReliablePacket {
     protected:
@@ -41,6 +47,8 @@ namespace implementation {
     struct PlayerPosition {
         u8 playerId;
         u8 padding[3];
+
+        ServerPacketTimestamp timestamp;
         
         f32 positionX;
         f32 positionY;
@@ -146,6 +154,8 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
     packet->padding[1] = 0;
     packet->padding[2] = 0;
 
+    packet->timestamp = ServerPacketTimestamp(timestamp);
+
     packet->positionX = position.x;
     packet->positionY = position.y;
     packet->positionZ = position.z;
@@ -170,6 +180,8 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
     const implementation::PlayerPosition *packet = (const implementation::PlayerPosition *)buff;
     
     out->playerId = consoleId.fromGlobalId(packet->playerId);
+
+    out->timestamp = packet->timestamp.toHL();
 
     out->position.set(packet->positionX, packet->positionY, packet->positionZ);
     out->velocity.set(packet->velocityX, packet->velocityY, packet->velocityZ);

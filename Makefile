@@ -14,9 +14,15 @@ BIN_PREFIX := ./bin/
 DEBUG_PREFIX := $(BIN_PREFIX)/Debug/
 RELEASE_PREFIX := $(BIN_PREFIX)/Release/
 
+DOLPHIN_PREFIX := Dolphin/
+DOLPHIN_OBJ_PREFIX := $(OBJ_PREFIX)/$(DOLPHIN_PREFIX)
+
+
 OUTPUT_PREFIX := $(DEBUG_PREFIX)
 
 DEFINES :=
+
+DOLPHIN_DEFINES := -DDOLPHIN
 
 debug: DEFINES += -DDEBUG
 
@@ -47,9 +53,16 @@ CFLAGS := -lang c99 $(CXXFLAGS) $(WARNFLAGS)
 
 #ASMFLAGS := -c -proc gecko
 
-O_FILES := net.o packets.o multimodel.o transmission.o packetProcessor.o multiplayer.o debug.o beacon.o
+O_FILES := net.o packets.o multimodel.o transmission.o packetProcessor.o multiplayer.o debug.o
 
 O_FILES := $(foreach obj, $(O_FILES), $(OBJ_PREFIX)/$(obj))
+
+DOLPHIN_DEPENDENT_O_FILES := beacon.o
+
+DOLPHIN_INSTANCE_O_FILES := $(foreach obj, $(DOLPHIN_DEPENDENT_O_FILES), $(DOLPHIN_OBJ_PREFIX)/$(obj))
+
+NONDOLPHIN_INSTANCE_O_FILES := $(foreach obj, $(DOLPHIN_DEPENDENT_O_FILES), $(OBJ_PREFIX)/$(obj))
+
 
 ifndef SYMBOL_MAP
 $(error Error: no symbol map specified)
@@ -63,8 +76,17 @@ SYMBOL_OSEV_ADDR = $(shell export SYMBOL_MAP="$(SYMBOL_MAP)" ; line=`grep OSExce
 debug: all
 release: all
 
+dolphinDebug: | $(DEBUG_PREFIX)/$(DOLPHIN_PREFIX)
+dolphinDebug: OUTPUT_PREFIX := $(DEBUG_PREFIX)
+dolphinDebug: $(DEBUG_PREFIX)/$(DOLPHIN_PREFIX)/interrupts.xml $(DEBUG_PREFIX)/$(DOLPHIN_PREFIX)/CustomCode_USA.bin
+dolphinRelease: | $(RELEASE_PREFIX)/$(DOLPHIN_PREFIX)
+dolphinRelease: OUTPUT_PREFIX := $(RELEASE_PREFIX)
+dolphinRelease: $(RELEASE_PREFIX)/$(DOLPHIN_PREFIX)/interrupts.xml $(RELEASE_PREFIX)/$(DOLPHIN_PREFIX)/CustomCode_USA.bin
+
 all: | $(OUTPUT_PREFIX)
 all: $(OUTPUT_PREFIX)/interrupts.xml $(OUTPUT_PREFIX)/CustomCode_USA.bin 
+
+
 
 clean:
 	rm -f $(OBJ_PREFIX)/* $(DEBUG_PREFIX)/* $(RELEASE_PREFIX)/*
@@ -84,6 +106,18 @@ $(DEBUG_PREFIX):
 $(RELEASE_PREFIX):
 	mkdir -p $(RELEASE_PREFIX)
 
+$(DOLPHIN_OBJ_PREFIX):
+	mkdir -p $(DOLPHIN_OBJ_PREFIX)
+
+$(DEBUG_PREFIX)/$(DOLPHIN_PREFIX):
+	mkdir -p $(DEBUG_PREFIX)/$(DOLPHIN_PREFIX)
+
+$(RELEASE_PREFIX)/$(DOLPHIN_PREFIX):
+	mkdir -p $(RELEASE_PREFIX)/$(DOLPHIN_PREFIX)
+
+$(DOLPHIN_OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.cpp | $(DOLPHIN_OBJ_PREFIX)
+	$(CXX) $(CXXFLAGS) $(DEFINES) $(DOLPHIN_DEFINES) -c -o $@ $<
+
 $(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.cpp | $(OBJ_PREFIX)
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<
 
@@ -93,8 +127,14 @@ $(OBJ_PREFIX)/%.o: $(SOURCE_PREFIX)/%.c | $(OBJ_PREFIX)
 $(OUTPUT_PREFIX)/interrupts.xml: $(OBJ_PREFIX)/interruptSubs.o 
 	$(KAMEK) -static=$(SYMBOL_OSEV_ADDR) -externals=$(SYMBOL_MAP) -output-riiv=$@ $(OBJ_PREFIX)/interruptSubs.o
 
-$(OUTPUT_PREFIX)/CustomCode_USA.bin: $(O_FILES)
-	$(KAMEK) -externals=$(SYMBOL_MAP) -output-kamek=$@ $(O_FILES)
+$(OUTPUT_PREFIX)/$(DOLPHIN_PREFIX)/interrupts.xml: $(OBJ_PREFIX)/interruptSubs.o 
+	$(KAMEK) -static=$(SYMBOL_OSEV_ADDR) -externals=$(SYMBOL_MAP) -output-riiv=$@ $(OBJ_PREFIX)/interruptSubs.o
+
+$(OUTPUT_PREFIX)/CustomCode_USA.bin: $(O_FILES) $(NONDOLPHIN_INSTANCE_O_FILES)
+	$(KAMEK) -externals=$(SYMBOL_MAP) -output-kamek=$@ $(O_FILES) $(NONDOLPHIN_INSTANCE_O_FILES)
+
+$(OUTPUT_PREFIX)/$(DOLPHIN_PREFIX)/CustomCode_USA.bin: $(O_FILES) $(DOLPHIN_INSTANCE_O_FILES)
+	$(KAMEK) -externals=$(SYMBOL_MAP) -output-kamek=$@ $(O_FILES) $(DOLPHIN_INSTANCE_O_FILES)
 
 
 
@@ -102,7 +142,9 @@ ifeq ($(COMPLETE_PREREQUISITES), true) #1
 
 $(OBJ_PREFIX)/%.d: $(SOURCE_PREFIX)/%.c* | $(OBJ_PREFIX)
 	@$(CC) $(INCLUDE) $(AUTO_GENERATE_FLAG) $< | sed 's/Z:\\/\//;s?^[^:]*:?$@ $(@:.d=.o):?;s/\\/\//g;s/\/\x0D$$/\\/' > $@
+$(DOLPHIN_OBJ_PREFIX)/%.d: $(SOURCE_PREFIX)/%.c* | $(DOLPHIN_OBJ_PREFIX)
+	@$(CC) $(INCLUDE) $(AUTO_GENERATE_FLAG) $< | sed 's/Z:\\/\//;s?^[^:]*:?$@ $(@:.d=.o):?;s/\\/\//g;s/\/\x0D$$/\\/' > $@
 
-include $(O_FILES:.o=.d) $(OBJ_PREFIX)/interruptSubs.d
+include $(O_FILES:.o=.d) $(OBJ_PREFIX)/interruptSubs.d $(DOLPHIN_INSTANCE_O_FILES:.o=.d) $(NONDOLPHIN_INSTANCE_O_FILES:.o=.d)
 
 endif #1

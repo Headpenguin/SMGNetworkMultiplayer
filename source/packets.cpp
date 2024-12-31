@@ -5,6 +5,7 @@
 #include "packets/playerPosition.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/beacon.hpp"
+#include "beacon.hpp"
 
 namespace Packets {
 
@@ -14,7 +15,7 @@ namespace implementation {
     class PacketTimestamp {
         u32 tMs;
      public:
-        PacketTimestamp(const T &t) : tMs(T.t.timeMs) {}
+        PacketTimestamp(const Timestamps::ClockboundTimestamp<T> &t) : tMs(t.timeMs) {}
     };
 
     class ReliablePacket {

@@ -24,19 +24,22 @@ struct ServerClockTag {};
 typedef ClockboundTimestamp<LocalClockTag> LocalTimestamp;
 typedef ClockboundTimestamp<ServerClockTag> ServerTimestamp;
 
+namespace implementation {
+    class _Beacon;
+}
 
 class Beacon {
+    friend class implementation::_Beacon;
     s32 offsetClientToServerMs;
     u32 commDelayMs;
     u16 timeSinceUpdateFrames;
-    bool init;
+    volatile bool init;
 
     void _update(Transmission::Transmitter<Packets::PacketProcessor> &);
     
-    const static u16 MAX_UPDATE_INTERVAL_FRAMES = 20 * 60 * 60; // Remember to match size with timeSinceUpdate
 public:
 
-    inline Beacon() : init(false), offsetClientToServerMs(0), commDelayMs(0), timeSinceUpdateFrames(0) {}
+    void init1();
     inline bool isInit() const {return init;}
     
     // Estimate the conversion, assuming mostly symmetrical communication delays
@@ -49,16 +52,13 @@ public:
         return t;
     }
 
-    static inline LocalTimestamp now() {
-        LocalTimestamp t = {OSTicksToMilliseconds(OSGetTime())};
-        return t;
-    }
+    static LocalTimestamp now();
     inline s32 ms(const LocalTimestamp &start, const LocalTimestamp &end) {
         return end.t.timeMs - start.t.timeMs;
     }
 
     inline void update(Transmission::Transmitter<Packets::PacketProcessor> &transmitter) {
-        if(!init || timeSinceUpdateFrames++ >= MAX_UPDATE_INTERVAL_FRAMES) _update(transmitter);
+        if(!init || --timeSinceUpdateFrames <= 0) _update(transmitter);
     }
 
     void process(const Packets::TimeResponse &);

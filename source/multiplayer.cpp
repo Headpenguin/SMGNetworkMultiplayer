@@ -33,7 +33,7 @@ MultiplayerInfo info;
 static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
 const static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
-const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000060};
+const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000024};
 
 static void init() {
     if(!initialized) {
@@ -48,7 +48,7 @@ static void init() {
         Transmission::Reader reader(16, buff, Packets::MAX_PACKET_SIZE, sd);
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);
         transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected, &info));
-        Timestamps::beacon = Timestamps::Beacon();
+        Timestamps::beacon.init1();
         transmitter.init();
         //sockfd = sd;
         initialized = true;
@@ -141,6 +141,9 @@ static void updatePackets(MarioActor *mario) {
         }
 
         Timestamps::beacon.update(transmitter);
+
+        if(Timestamps::beacon.isInit()) setPtrDebugMsg(12, (void*)Timestamps::beacon.convertToServer(Timestamps::beacon.now()).t.timeMs);
+        else setPtrDebugMsg(12, (void*)0xFFFFFFFF);
 
         transmitter.update();
     }

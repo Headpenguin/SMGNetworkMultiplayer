@@ -18,7 +18,7 @@ static const char *fsDolphinDevice = "/dev/dolphin";
 
 static struct {
     IOSIoVector v[1] __attribute__((aligned(32)));
-    u32 timeMs;
+    u32 timeMs __attribute__((aligned(32)));
 } dolphinGetTimeInfo = {0};
 
 static struct {
@@ -111,6 +111,7 @@ static bool calcConversion() {
     dolphinTimeConversions.currDolTimeSafe = dolphinTimeConversions.currDolTime - beaconTimebase.baseDolTimeMs;
     dolphinTimeConversions.currOSTimeSafe = dolphinTimeConversions.currOSTime - beaconTimebase.baseOSTimeMs;
     dolphinTimeConversions.isConversionAccurate = true;
+    //setPtrDebugMsg(12, (void*)dolphinTimeConversions.currDolTimeSafe);
     return true;
 }
 #endif
@@ -127,17 +128,6 @@ static void initConversions() {
 
 #endif
 }
-
-void Beacon::init1() {
-    init = false;
-    offsetClientToServerMs = 0;
-    commDelayMs = 0;
-    timeSinceUpdateFrames = 0;
-#ifdef DOLPHIN
-    dolphinDeviceInit();
-#endif
-    initConversions();
-}
    
 // In the dolphin version, we need to also periodically update the average clockspeed
 #ifdef DOLPHIN 
@@ -145,6 +135,17 @@ const static u16 MAX_UPDATE_INTERVAL_FRAMES = 20; // Remember to match size with
 #else
 const static u16 MAX_UPDATE_INTERVAL_FRAMES = 20 * 60 * 60; // Remember to match size with timeSinceUpdate
 #endif
+
+void Beacon::init1() {
+    init = false;
+    offsetClientToServerMs = 0;
+    commDelayMs = 0;
+    timeSinceUpdateFrames = 1;
+#ifdef DOLPHIN
+    dolphinDeviceInit();
+#endif
+    initConversions();
+}
 
 const static u32 TIMEOUT_FRAMES = 2 * 60; // 500ms is better, maybe go even lower if possible
 
@@ -176,14 +177,15 @@ public:
 
 static IOSError _update2Callback(IOSError, void *data) {
 
+
     Transmission::Transmitter<Packets::PacketProcessor> &transmitter =
         *(Transmission::Transmitter<Packets::PacketProcessor> *)data;
     
     _beaconInitData.startTime = 
 #ifdef DOLPHIN
-        dolphinGetTimeInfo.timeMs; // could improve by setting start time in transmitter/writer
+        dolphinGetTimeInfo.timeMs - beaconTimebase.baseDolTimeMs; // could improve by setting start time in transmitter/writer
 #else
-        OSTicksToMilliseconds(OSTime());
+        OSTicksToMilliseconds(OSTime()) - beaconTimebase.baseOSTimeMs;
 #endif
     
     Packets::TimeQuery tqp;
@@ -211,6 +213,7 @@ void Beacon::_update(Transmission::Transmitter<Packets::PacketProcessor> &transm
     if(init) {
         if(timeSinceUpdateFrames <= 0) {
             timeSinceUpdateFrames = MAX_UPDATE_INTERVAL_FRAMES;
+            //setDebugMsg(12, 1);
 #ifdef DOLPHIN
             dolphinResync();
 #endif
@@ -231,17 +234,19 @@ void Beacon::_update(Transmission::Transmitter<Packets::PacketProcessor> &transm
 }
 
 IOSError implementation::_Beacon::process2Callback(IOSError, void *data) {
-    Beacon &self = *(Beacon *)data;
 
+    Beacon &self = *(Beacon *)data;
+    
     u32 time = 
 #ifdef DOLPHIN
-        dolphinGetTimeInfo.timeMs;
+        dolphinGetTimeInfo.timeMs - beaconTimebase.baseDolTimeMs;
 #else
-        OSTicksToMilliseconds(OSGetTime()); // Does not need thread
+        OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs; // Does not need thread
 #endif
 
     self.commDelayMs = time - _beaconInitData.startTime;
 
+    self.timeSinceUpdateFrames = 1;
     self.init = true;
     simplelock_release(&_beaconInitData.lock);
     return 0;
@@ -260,6 +265,7 @@ void implementation::_Beacon::process2(Beacon &self) {
 // PLEASE MAKE SURE THAT `trp.verify` IS INSTANTIATED WITH PARAMETERS
 // THAT FULFILL THIS REQUIREMENT BEFORE CHANGING THIS FUNCTION
 void Beacon::process(const Packets::TimeResponse &trp) {
+    //setDebugMsg(12, 1);
     if(init) return;
     if(simplelock_tryLockLoop(&_beaconInitData.lock) != TRY_LOCK_RESULT_OK) return;
     if(init 
@@ -269,9 +275,9 @@ void Beacon::process(const Packets::TimeResponse &trp) {
         simplelock_release(&_beaconInitData.lock);
         return;
     }
+    //setDebugMsg(13, 1);
     
     offsetClientToServerMs = trp.timeMs - _beaconInitData.startTime;
-    timeSinceUpdateFrames = 0;
 
     implementation::_Beacon::process2(*this);
 }

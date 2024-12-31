@@ -69,6 +69,7 @@ kmCall(&init__10GameSystemFv + 0x94, initWrapper); // Replaces a call to `DrawSy
 
 // Call this every frame
 static void updatePackets(MarioActor *mario) {
+    if(connected) Timestamps::beacon.update(transmitter); // needs some space from transmitter.update() to avoid lock contention
     mario->control2();
     if(initialized) {
         setDebugMsg(0, 0xFE);
@@ -94,6 +95,8 @@ static void updatePackets(MarioActor *mario) {
         }
 
         if(connected) {
+            
+            
             Packets::PlayerPosition pos;
             pos.playerId = Packets::PlayerPosition::consoleId;
             pos.position = mario->mPosition;
@@ -140,10 +143,10 @@ static void updatePackets(MarioActor *mario) {
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }
 
-        Timestamps::beacon.update(transmitter);
 
-        if(Timestamps::beacon.isInit()) setPtrDebugMsg(12, (void*)Timestamps::beacon.convertToServer(Timestamps::beacon.now()).t.timeMs);
-        else setPtrDebugMsg(12, (void*)0xFFFFFFFF);
+        //if(Timestamps::beacon.isInit()) Timestamps::Beacon::now();
+        /*if(Timestamps::beacon.isInit()) setPtrDebugMsg(12, (void*)Timestamps::beacon.convertToServer(Timestamps::beacon.now()).t.timeMs);
+        else setPtrDebugMsg(12, (void*)0xFFFFFFFF);*/
 
         transmitter.update();
     }

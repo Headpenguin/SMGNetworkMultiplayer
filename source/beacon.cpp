@@ -1,6 +1,9 @@
 #include "beacon.hpp"
+#include "accurateTime.hpp"
 
 namespace Timestamps {
+
+float timeRate = 1.0f;
 
 static struct {
     u32 baseOSTimeMs;
@@ -109,9 +112,10 @@ static bool calcConversion() {
 
     dolphinTimeConversions.conversionFactor = dolDelta / osDelta;
     dolphinTimeConversions.currDolTimeSafe = dolphinTimeConversions.currDolTime - beaconTimebase.baseDolTimeMs;
-    dolphinTimeConversions.currOSTimeSafe = dolphinTimeConversions.currOSTime - beaconTimebase.baseOSTimeMs;
+    dolphinTimeConversions.currOSTimeSafe = dolphinTimeConversions.currOSTime;
     dolphinTimeConversions.isConversionAccurate = true;
-    //setPtrDebugMsg(12, (void*)dolphinTimeConversions.currDolTimeSafe);
+    timeRate = dolphinTimeConversions.conversionFactor;
+    setPtrDebugMsg(12, (void*)dolphinTimeConversions.currDolTimeSafe);
     return true;
 }
 #endif
@@ -185,8 +189,9 @@ static IOSError _update2Callback(IOSError, void *data) {
 #ifdef DOLPHIN
         dolphinGetTimeInfo.timeMs - beaconTimebase.baseDolTimeMs; // could improve by setting start time in transmitter/writer
 #else
-        OSTicksToMilliseconds(OSTime()) - beaconTimebase.baseOSTimeMs;
+        OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs;
 #endif
+    setPtrDebugMsg(12, (void*)beaconTimebase.baseOSTimeMs);
     
     Packets::TimeQuery tqp;
     tqp.init(_beaconInitData.startTime); // CANNOT BLOCK
@@ -298,6 +303,7 @@ LocalTimestamp Beacon::now() {
     return ret;
 #else
     LocalTimestamp t = {OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs};
+//    setPtrDebugMsg(12, (void*)t.t.timeMs);
     return t;
 #endif
 }

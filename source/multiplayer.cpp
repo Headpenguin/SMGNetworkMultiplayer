@@ -145,8 +145,8 @@ static void updatePackets(MarioActor *mario) {
 
 
         //if(Timestamps::beacon.isInit()) Timestamps::Beacon::now();
-        /*if(Timestamps::beacon.isInit()) setPtrDebugMsg(12, (void*)Timestamps::beacon.convertToServer(Timestamps::beacon.now()).t.timeMs);
-        else setPtrDebugMsg(12, (void*)0xFFFFFFFF);*/
+/*        if(Timestamps::beacon.isInit()) setPtrDebugMsg(16, (void*)Timestamps::beacon.convertToServer(Timestamps::beacon.now()).t.timeMs);
+        else setPtrDebugMsg(16, (void*)0xFFFFFFFF);*/
 
         transmitter.update();
     }

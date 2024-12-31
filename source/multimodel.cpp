@@ -157,7 +157,7 @@ void calcAnim_ep(MarioAnimator *anim) {
         baseMtx[2][2] = Z.z;
 
         //setDebugMsgFloat(12, pos.position.y);
-        setDebugMsgFloat(16, pos.position.z);
+        //setDebugMsgFloat(16, pos.position.z);
 
         XanimeGroupInfo *info = getGroupInfoFromIdx(playerXanimes[i], pos.currAnmIdx);
         setDebugMsg(8, 0);

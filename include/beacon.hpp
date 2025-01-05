@@ -6,23 +6,9 @@
 #include "transmission.hpp"
 #include "packets/beacon.hpp"
 #include "packetProcessor.hpp"
+#include "timestamps.hpp"
 
 namespace Timestamps {
-    
-struct _Timestamp {
-    u32 timeMs;
-};
-
-template<typename T>
-struct ClockboundTimestamp {
-    _Timestamp t;
-};
-
-struct LocalClockTag {};
-struct ServerClockTag {};
-
-typedef ClockboundTimestamp<LocalClockTag> LocalTimestamp;
-typedef ClockboundTimestamp<ServerClockTag> ServerTimestamp;
 
 namespace implementation {
     class _Beacon;

@@ -3,7 +3,7 @@
 
 #include "packets.hpp"
 #include "playerCommon.hpp"
-#include "beacon.hpp"
+#include "timestamps.hpp"
 #include <JSystem/JGeometry/TVec.hpp>
 
 namespace Packets {
@@ -15,7 +15,7 @@ public:
 
     Multiplayer::Id playerId;
 
-    ServerTimestamp timestamp;
+    Timestamps::ServerTimestamp timestamp;
 
     TVec3f position;
     TVec3f velocity;

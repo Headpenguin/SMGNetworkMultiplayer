@@ -19,10 +19,12 @@ static struct {
 static int fdDolphinDevice = -1;
 static const char *fsDolphinDevice = "/dev/dolphin";
 
-static struct {
+struct DolphinGetTimeInfo {
     IOSIoVector v[1] __attribute__((aligned(32)));
     u32 timeMs __attribute__((aligned(32)));
-} dolphinGetTimeInfo = {0};
+};
+static DolphinGetTimeInfo dolphinGetTimeInfoInit = {0};
+static DolphinGetTimeInfo dolphinGetTimeInfoConversion = {0};
 
 static struct {
 
@@ -47,20 +49,24 @@ static long dolphinDeviceInit() {
     int ret = IOS_Open(fsDolphinDevice, 0);
     if(ret < 0) return ret;
     fdDolphinDevice = ret;
-    dolphinGetTimeInfo.v[0].base = (u8*)&dolphinGetTimeInfo.timeMs;
-    dolphinGetTimeInfo.v[0].length = sizeof dolphinGetTimeInfo.timeMs;
+    dolphinGetTimeInfoInit.v[0].base = (u8*)&dolphinGetTimeInfoInit.timeMs;
+    dolphinGetTimeInfoInit.v[0].length = sizeof dolphinGetTimeInfoInit.timeMs;
+    dolphinGetTimeInfoConversion.v[0].base = (u8*)&dolphinGetTimeInfoConversion.timeMs;
+    dolphinGetTimeInfoConversion.v[0].length = sizeof dolphinGetTimeInfoConversion.timeMs;
     return 0;
 }
 
-static u32 dolphinGetTime() {
+static u32 dolphinGetTime(DolphinGetTimeInfo *dolphinGetTimeInfo) {
     if(fdDolphinDevice < 0) return 0xFFFFFFFF;
-    IOS_Ioctlv(fdDolphinDevice, IOCTL_DOLPHIN_GET_SYSTEM_TIME, 0, 1, dolphinGetTimeInfo.v);
-    return dolphinGetTimeInfo.timeMs;
+    // getTimeInfo type ensures proper alignment
+    IOS_Ioctlv(fdDolphinDevice, IOCTL_DOLPHIN_GET_SYSTEM_TIME, 0, 1, dolphinGetTimeInfo->v);
+    return dolphinGetTimeInfo->timeMs;
 }
 
-static long dolphinGetTimeAsync(IOSError (*cb)(IOSError, void *), void *data) {
-    if(fdDolphinDevice < 0);
-    return IOS_IoctlvAsync(fdDolphinDevice, IOCTL_DOLPHIN_GET_SYSTEM_TIME, 0, 1, dolphinGetTimeInfo.v, cb, data);
+static long dolphinGetTimeAsync(DolphinGetTimeInfo *dolphinGetTimeInfo, IOSError (*cb)(IOSError, void *), void *data) {
+    if(fdDolphinDevice < 0) return 0xFFFFFFFF;
+    // getTimeInfo type ensures proper alignment
+    return IOS_IoctlvAsync(fdDolphinDevice, IOCTL_DOLPHIN_GET_SYSTEM_TIME, 0, 1, dolphinGetTimeInfo->v, cb, data);
 }
 
 static IOSError dolphinResyncCb(IOSError err, void *) {
@@ -75,7 +81,7 @@ static IOSError dolphinResyncCb(IOSError err, void *) {
     dolphinTimeConversions.prevOSTime = dolphinTimeConversions.currOSTime;
     dolphinTimeConversions.prevDolTime = dolphinTimeConversions.currDolTime;
     dolphinTimeConversions.currOSTime = dolphinTimeConversions.nextOSTime;
-    dolphinTimeConversions.currDolTime = dolphinGetTimeInfo.timeMs;
+    dolphinTimeConversions.currDolTime = dolphinGetTimeInfoConversion.timeMs;
     
     dolphinTimeConversions.waiting = false;
     //simplelock_release(&dolphinTimeConversions.lock);
@@ -92,7 +98,7 @@ static void dolphinResync() {
     dolphinTimeConversions.nextOSTime = OSTicksToMilliseconds(OSGetTime());
     dolphinTimeConversions.waiting = true;
     //simplelock_release(&dolphinTimeConversions.lock);
-    dolphinGetTimeAsync(dolphinResyncCb, nullptr);
+    dolphinGetTimeAsync(&dolphinGetTimeInfoConversion, dolphinResyncCb, nullptr);
 /*    return;
 fail:
     simplelock_release(&dolphinTimeConversions.lock);*/
@@ -123,7 +129,7 @@ static bool calcConversion() {
 static void initConversions() {
     beaconTimebase.baseOSTimeMs = OSTicksToMilliseconds(OSGetTime());
 #ifdef DOLPHIN
-    beaconTimebase.baseDolTimeMs = dolphinGetTime();
+    beaconTimebase.baseDolTimeMs = dolphinGetTime(&dolphinGetTimeInfoConversion);
     dolphinTimeConversions.conversionFactor = 1.0f;
     dolphinTimeConversions.currDolTime = beaconTimebase.baseDolTimeMs;
     dolphinTimeConversions.currOSTime = beaconTimebase.baseOSTimeMs;
@@ -133,12 +139,7 @@ static void initConversions() {
 #endif
 }
    
-// In the dolphin version, we need to also periodically update the average clockspeed
-#ifdef DOLPHIN 
-const static u16 MAX_UPDATE_INTERVAL_FRAMES = 20; // Remember to match size with timeSinceUpdate
-#else
 const static u16 MAX_UPDATE_INTERVAL_FRAMES = 20 * 60 * 60; // Remember to match size with timeSinceUpdate
-#endif
 
 void Beacon::init1() {
     init = false;
@@ -187,7 +188,7 @@ static IOSError _update2Callback(IOSError, void *data) {
     
     _beaconInitData.startTime = 
 #ifdef DOLPHIN
-        dolphinGetTimeInfo.timeMs - beaconTimebase.baseDolTimeMs; // could improve by setting start time in transmitter/writer
+        dolphinGetTimeInfoInit.timeMs - beaconTimebase.baseDolTimeMs; // could improve by setting start time in transmitter/writer
 #else
         OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs;
 #endif
@@ -208,7 +209,7 @@ static IOSError _update2Callback(IOSError, void *data) {
 
 static void _update2(Transmission::Transmitter<Packets::PacketProcessor> &transmitter) {
 #ifdef DOLPHIN
-    dolphinGetTimeAsync(_update2Callback, &transmitter);
+    dolphinGetTimeAsync(&dolphinGetTimeInfoInit, _update2Callback, &transmitter);
 #else
     _update2Callback(0, &transmitter);
 #endif
@@ -219,9 +220,6 @@ void Beacon::_update(Transmission::Transmitter<Packets::PacketProcessor> &transm
         if(timeSinceUpdateFrames <= 0) {
             timeSinceUpdateFrames = MAX_UPDATE_INTERVAL_FRAMES;
             //setDebugMsg(12, 1);
-#ifdef DOLPHIN
-            dolphinResync();
-#endif
         }
     }
     else if(_beaconInitData.state == _beaconInitData.INIT || _beaconInitData.queryTimer == 0) {
@@ -244,7 +242,7 @@ IOSError implementation::_Beacon::process2Callback(IOSError, void *data) {
     
     u32 time = 
 #ifdef DOLPHIN
-        dolphinGetTimeInfo.timeMs - beaconTimebase.baseDolTimeMs;
+        dolphinGetTimeInfoInit.timeMs - beaconTimebase.baseDolTimeMs;
 #else
         OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs; // Does not need thread
 #endif
@@ -259,7 +257,7 @@ IOSError implementation::_Beacon::process2Callback(IOSError, void *data) {
 
 void implementation::_Beacon::process2(Beacon &self) {
 #ifdef DOLPHIN
-    dolphinGetTimeAsync(_Beacon::process2Callback, &self);
+    dolphinGetTimeAsync(&dolphinGetTimeInfoInit, _Beacon::process2Callback, &self);
 #else
     process2Callback(0, &self);
 #endif
@@ -305,6 +303,22 @@ LocalTimestamp Beacon::now() {
     LocalTimestamp t = {OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs};
 //    setPtrDebugMsg(12, (void*)t.t.timeMs);
     return t;
+#endif
+}
+
+
+
+#ifdef DOLPHIN
+const static u8 MAX_DOLPHIN_UPDATE_INTERVAL_FRAMES = 20;
+static u8 dolphinUpdateTimerFrames = MAX_DOLPHIN_UPDATE_INTERVAL_FRAMES;
+#endif
+
+void updateDolphinTime() {
+#ifdef DOLPHIN
+    if(--dolphinUpdateTimerFrames <= 0) {
+        dolphinUpdateTimerFrames = MAX_DOLPHIN_UPDATE_INTERVAL_FRAMES;
+        dolphinResync();
+    }
 #endif
 }
 

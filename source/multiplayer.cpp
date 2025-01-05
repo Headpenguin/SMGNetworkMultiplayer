@@ -10,6 +10,7 @@
 #include "packets/playerPosition.hpp"
 #include "beacon.hpp"
 #include "debug.hpp"
+#include "accurateTime.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
@@ -20,7 +21,7 @@ namespace Timestamps {
 
 namespace Multiplayer {
 
-s32 PlayerQueue::determineBufPosition() const {
+/*s32 PlayerQueue::determineBufPosition() const {
     if(!beacon.isInit()) return -1;
     ServerTimestamp now = Timestamps::beacon.convertToServer(Timestamps::beacon.now());
     now.t.timeMs -= 167;
@@ -39,7 +40,7 @@ void PlayerQueue::addPosition(const Packets::PlayerPosition &p) {
         now.t.timeMs -= 167;
         if(p.timestamp.t.timeMs > fallbackPos.timeMs && p.timestamp.t.timeMs <= now.t.timeMs) fallbackPos = p;
 }
-
+*/
 static bool initialized;
 static bool connected;
 
@@ -93,6 +94,7 @@ static void updatePackets(MarioActor *mario) {
     mario->control2();
     if(initialized) {
         setDebugMsg(0, 0xFE);
+        Timestamps::updateDolphinTime();
         //test[0] = 0xfe;
         if(queryTimer > 0) queryTimer--;
         else {
@@ -160,9 +162,9 @@ static void updatePackets(MarioActor *mario) {
 
             pos.anmSpeed = xanime._20->mSpeed;
 
-            pos.timestamp = Timestamps::beacon.convertToServer(
-                Timestamps::beacon.isInit() ? Timestamps::beacon::now()
-                : Timestamps::beacon::now());
+            pos.timestamp = Timestamps::beacon.isInit() ? 
+                Timestamps::beacon.convertToServer(Timestamps::beacon.now())
+                : Timestamps::makeEmptyServerTimestamp();
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }

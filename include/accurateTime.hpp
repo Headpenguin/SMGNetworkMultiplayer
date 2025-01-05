@@ -3,7 +3,9 @@
 
 namespace Timestamps {
 
-extern float realtimeRate; // how many real seconds pass every second
+extern float realtimeRate; // how many real seconds pass every second OS second
+
+void updateDolphinTime();
 
 }
 

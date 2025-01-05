@@ -55,7 +55,8 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
                 }
             }
 
-            doubleBuff.pos[buffIdx].addPosition(pos);
+ //           doubleBuff.pos[buffIdx].addPosition(pos);
+            doubleBuff.pos[buffIdx] = pos;
 
             simplelock_release(&doubleBuff.locks[buffIdx]);
 

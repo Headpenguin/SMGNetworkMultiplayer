@@ -168,7 +168,7 @@ void calcAnim_ep(MarioAnimator *anim) {
             }
         }
 
-        const Packets::PlayerPosition pos = doubleBuffer.pos.getCurrentFrame();
+        const Packets::PlayerPosition pos = doubleBuffer.pos[buffIdx];
         
         simplelock_release(&doubleBuffer.locks[buffIdx]);
         

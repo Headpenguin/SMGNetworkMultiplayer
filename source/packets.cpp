@@ -15,7 +15,7 @@ namespace implementation {
     class PacketTimestamp {
         u32 tMs;
      public:
-        PacketTimestamp(const Timestamps::ClockboundTimestamp<T> &t) : tMs(t.timeMs) {}
+        PacketTimestamp(const Timestamps::ClockboundTimestamp<T> &t) : tMs(t.t.timeMs) {}
         Timestamps::ClockboundTimestamp<T> toHL() const {
             Timestamps::ClockboundTimestamp<T> ret = {tMs};
             return ret;
@@ -154,7 +154,7 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
     packet->padding[1] = 0;
     packet->padding[2] = 0;
 
-    packet->timestamp = ServerPacketTimestamp(timestamp);
+    packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
 
     packet->positionX = position.x;
     packet->positionY = position.y;

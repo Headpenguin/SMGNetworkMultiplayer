@@ -3,7 +3,7 @@
 
 namespace Timestamps {
 
-float timeRate = 1.0f;
+float realtimeRate = 1.0f;
 
 static struct {
     u32 baseOSTimeMs;
@@ -120,7 +120,7 @@ static bool calcConversion() {
     dolphinTimeConversions.currDolTimeSafe = dolphinTimeConversions.currDolTime - beaconTimebase.baseDolTimeMs;
     dolphinTimeConversions.currOSTimeSafe = dolphinTimeConversions.currOSTime;
     dolphinTimeConversions.isConversionAccurate = true;
-    timeRate = dolphinTimeConversions.conversionFactor;
+    realtimeRate = dolphinTimeConversions.conversionFactor == 0.0f ? 1.0f : 1.0f / dolphinTimeConversions.conversionFactor;
     setPtrDebugMsg(12, (void*)dolphinTimeConversions.currDolTimeSafe);
     return true;
 }
@@ -133,8 +133,8 @@ static void initConversions() {
     dolphinTimeConversions.conversionFactor = 1.0f;
     dolphinTimeConversions.currDolTime = beaconTimebase.baseDolTimeMs;
     dolphinTimeConversions.currOSTime = beaconTimebase.baseOSTimeMs;
-    dolphinTimeConversions.currDolTimeSafe = 0;
-    dolphinTimeConversions.currOSTimeSafe = 0;
+    dolphinTimeConversions.currDolTimeSafe = beaconTimebase.baseDolTimeMs;
+    dolphinTimeConversions.currOSTimeSafe = beaconTimebase.baseOSTimeMs;
 
 #endif
 }
@@ -285,32 +285,36 @@ void Beacon::process(const Packets::TimeResponse &trp) {
     implementation::_Beacon::process2(*this);
 }
 
-LocalTimestamp Beacon::now() {
+static LocalTimestamp now_int() {
 #ifdef DOLPHIN
-    LocalTimestamp ret = {0xFFFFFFFF};
-    if(!dolphinTimeConversions.isConversionAccurate) calcConversion();
-    
-    ret.t.timeMs = 
-        (u32)(
+    LocalTimestamp ret = {
+        (s32)(
             OSTicksToMilliseconds(OSGetTime()) 
             - dolphinTimeConversions.currOSTimeSafe
         ) 
         * dolphinTimeConversions.conversionFactor 
-    + dolphinTimeConversions.currDolTimeSafe;
+        + dolphinTimeConversions.currDolTimeSafe
+    };
 
     return ret;
 #else
     LocalTimestamp t = {OSTicksToMilliseconds(OSGetTime()) - beaconTimebase.baseOSTimeMs};
-//    setPtrDebugMsg(12, (void*)t.t.timeMs);
     return t;
 #endif
+}
+
+LocalTimestamp now() {
+#ifdef DOLPHIN
+    if(!dolphinTimeConversions.isConversionAccurate) calcConversion();
+#endif
+    return now_int();
 }
 
 
 
 #ifdef DOLPHIN
 const static u8 MAX_DOLPHIN_UPDATE_INTERVAL_FRAMES = 20;
-static u8 dolphinUpdateTimerFrames = MAX_DOLPHIN_UPDATE_INTERVAL_FRAMES;
+static u8 dolphinUpdateTimerFrames = 1;
 #endif
 
 void updateDolphinTime() {

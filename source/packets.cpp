@@ -5,7 +5,7 @@
 #include "packets/playerPosition.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/beacon.hpp"
-#include "beacon.hpp"
+#include "accurateTime.hpp"
 
 namespace Packets {
 
@@ -13,7 +13,7 @@ namespace implementation {
 
     template<typename T>
     class PacketTimestamp {
-        u32 tMs;
+        s32 tMs;
      public:
         PacketTimestamp(const Timestamps::ClockboundTimestamp<T> &t) : tMs(t.t.timeMs) {}
         Timestamps::ClockboundTimestamp<T> toHL() const {
@@ -190,6 +190,8 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
     out->currAnmIdx = packet->currAnmIdx;
     out->defaultAnmIdx = packet->defaultAnmIdx;
     out->anmSpeed = packet->anmSpeed;
+
+    out->arrivalTime = Timestamps::now();
 
     return NetReturn::Ok(implementationSize);
 }

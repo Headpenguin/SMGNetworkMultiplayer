@@ -16,6 +16,7 @@ public:
     Multiplayer::Id playerId;
 
     Timestamps::ServerTimestamp timestamp;
+    Timestamps::LocalTimestamp arrivalTime;
 
     TVec3f position;
     TVec3f velocity;

@@ -38,11 +38,6 @@ public:
         return t;
     }
 
-    static LocalTimestamp now();
-    inline s32 ms(const LocalTimestamp &start, const LocalTimestamp &end) {
-        return end.t.timeMs - start.t.timeMs;
-    }
-
     inline void update(Transmission::Transmitter<Packets::PacketProcessor> &transmitter) {
         if(!init || --timeSinceUpdateFrames <= 0) _update(transmitter);
     }

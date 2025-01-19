@@ -122,7 +122,7 @@ static void updatePackets(MarioActor *mario) {
             Packets::PlayerPosition pos;
             pos.playerId = Packets::PlayerPosition::consoleId;
             pos.position = mario->mPosition;
-            pos.velocity = mario->mVelocity;
+            pos.velocity = mario->mVelocity * Timestamps::realtimeRate;
             //pos.direction = mario->mRotation;
             const Mtx &baseMtx = mario->getJ3DModel()->_24;
             TVec3f X(baseMtx[0][0], baseMtx[1][0], baseMtx[2][0]);
@@ -163,7 +163,7 @@ static void updatePackets(MarioActor *mario) {
             pos.anmSpeed = xanime._20->mSpeed;
 
             pos.timestamp = Timestamps::beacon.isInit() ? 
-                Timestamps::beacon.convertToServer(Timestamps::beacon.now())
+                Timestamps::beacon.convertToServer(Timestamps::now())
                 : Timestamps::makeEmptyServerTimestamp();
 
             setDebugMsg(2, transmitter.addPacket(pos).err);

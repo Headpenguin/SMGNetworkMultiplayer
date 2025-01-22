@@ -11,6 +11,7 @@
 #include "beacon.hpp"
 #include "debug.hpp"
 #include "accurateTime.hpp"
+#include "alignment.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
@@ -20,6 +21,11 @@ namespace Timestamps {
 };
 
 namespace Multiplayer {
+
+static struct {
+    AlignmentState state;
+    bool isInit;
+} alignmentStates[Multiplayer::MAX_PLAYER_COUNT - 1];
 
 /*s32 PlayerQueue::determineBufPosition() const {
     if(!beacon.isInit()) return -1;
@@ -39,7 +45,7 @@ void PlayerQueue::addPosition(const Packets::PlayerPosition &p) {
         ServerTimestamp now = Timestamps::beacon.convertToServer(Timestamps::beacon.now());
         now.t.timeMs -= 167;
         if(p.timestamp.t.timeMs > fallbackPos.timeMs && p.timestamp.t.timeMs <= now.t.timeMs) fallbackPos = p;
-}
+}}
 */
 static bool initialized;
 static bool connected;
@@ -50,6 +56,7 @@ static u32 queryTimer = 0;
 //static int sockfd;
 
 MultiplayerInfo info;
+MultiplayerAccess access;
 
 static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
@@ -180,6 +187,36 @@ static void updatePackets(MarioActor *mario) {
 
 
 kmCall(&control__10MarioActorFv + 0x100, updatePackets);
+
+const Packets::PlayerPosition& MultiplayerAccess::getPlayerPosRaw(u32 i) {
+    u32 buffIdx = getMostRecentBuffer(i, info.status);
+    PlayerDoubleBuffer &doubleBuffer = info.players[i];
+
+    if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+        buffIdx = buffIdx == 1 ? 0 : 1;
+        if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+            return pos; // should never happen
+        }
+    }
+    
+    pos = doubleBuffer.pos[buffIdx];
+
+    simplelock_release(&doubleBuffer.locks[buffIdx]);
+
+    return pos;
+}
+
+bool MultiplayerAccess::isPlayerPosEstimateSet(u32 i) const {
+    return alignmentStates[i].isInit;
+}
+
+void MultiplayerAccess::setPlayerPosEstimate(u32 i) const {
+    alignmentStates[i].isInit = true;
+}
+
+AlignmentState& MultiplayerAccess::getPlayerPosEstimate(u32 i) const {
+    return alignmentStates[i].state;
+}
 
 }
 

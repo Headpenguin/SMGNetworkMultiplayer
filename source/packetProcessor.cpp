@@ -56,7 +56,13 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
             }
 
  //           doubleBuff.pos[buffIdx].addPosition(pos);
-            doubleBuff.pos[buffIdx] = pos;
+            Packets::PlayerPosition &bufPos = doubleBuff.pos[buffIdx];
+            if (
+                Timestamps::isEmpty(bufPos.timestamp) 
+                || bufPos.timestamp < pos.timestamp
+            ) {
+                bufPos = pos;
+            }
 
             simplelock_release(&doubleBuff.locks[buffIdx]);
 

@@ -4,6 +4,8 @@
 #include "atomic.h"
 #include "packets/playerPosition.hpp"
 
+class AlignmentState;
+
 namespace Multiplayer {
 
 const u32 MAX_PLAYER_COUNT = 8;
@@ -47,6 +49,20 @@ struct MultiplayerInfo {
 };
 
 extern MultiplayerInfo info;
+
+class MultiplayerAccess {
+    Packets::PlayerPosition pos;
+public:
+    inline bool isPlayerActive(u32 i) const {
+        return Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus);
+    }
+    const Packets::PlayerPosition& getPlayerPosRaw(u32);
+    bool isPlayerPosEstimateSet(u32) const;
+    void setPlayerPosEstimate(u32) const;
+    AlignmentState& getPlayerPosEstimate(u32) const;
+};
+
+extern MultiplayerAccess access;
 
 }
 

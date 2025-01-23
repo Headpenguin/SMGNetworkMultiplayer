@@ -51,7 +51,7 @@ struct MultiplayerInfo {
 extern MultiplayerInfo info;
 
 class MultiplayerAccess {
-    Packets::PlayerPosition pos;
+    Packets::PlayerPosition pos[MAX_PLAYER_COUNT - 1];
 public:
     inline bool isPlayerActive(u32 i) const {
         return Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus);

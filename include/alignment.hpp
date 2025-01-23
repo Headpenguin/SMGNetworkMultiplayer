@@ -37,7 +37,7 @@ public:
         }
         void update(f32 framesElapsed);
         inline bool isInvalid(const HomingAlignmentPlan &other) const {
-            return other.time > time || !isInit;
+            return other.time > time || !initFlag;
         }
     };
 

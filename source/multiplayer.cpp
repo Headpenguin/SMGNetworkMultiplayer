@@ -195,15 +195,15 @@ const Packets::PlayerPosition& MultiplayerAccess::getPlayerPosRaw(u32 i) {
     if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
         buffIdx = buffIdx == 1 ? 0 : 1;
         if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
-            return pos; // should never happen
+            return pos[i];
         }
     }
     
-    pos = doubleBuffer.pos[buffIdx];
+    pos[i] = doubleBuffer.pos[buffIdx];
 
     simplelock_release(&doubleBuffer.locks[buffIdx]);
 
-    return pos;
+    return pos[i];
 }
 
 bool MultiplayerAccess::isPlayerPosEstimateSet(u32 i) const {

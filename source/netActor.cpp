@@ -66,6 +66,7 @@ void NetActor::init(const JMapInfoIter &) {
 
 #define SENSOR_MSG_PUSH 0x29
 #define SENSOR_MSG_JUMP 0x2C
+#define SENSOR_MSG_ENEMY_ATTACK_FLIP_JUMP 0x4F
 void NetActor::movement() {
     LiveActor::movement();
 
@@ -73,7 +74,14 @@ void NetActor::movement() {
 
 bool NetActor::receiveMsgPush(HitSensor *sender, HitSensor *receiver) {
     if(sender->mActor == (LiveActor*)marioActor) {
-        sender->receiveMessage(SENSOR_MSG_PUSH, receiver);
+        sender->receiveMessage(
+            Multiplayer::access
+                .getPlayerPosRaw(getPlayerFromSensor(*this, receiver))
+                .isHipDropStun() ? 
+                    SENSOR_MSG_ENEMY_ATTACK_FLIP_JUMP
+                    : SENSOR_MSG_PUSH,
+            receiver
+        );
     }
 
     return true;

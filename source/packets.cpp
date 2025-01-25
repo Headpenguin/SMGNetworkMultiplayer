@@ -46,7 +46,8 @@ namespace implementation {
 
     struct PlayerPosition {
         u8 playerId;
-        u8 padding[3];
+        u8 stateFlags;
+        u8 padding[2];
 
         ServerPacketTimestamp timestamp;
         
@@ -150,9 +151,10 @@ NetReturn _PlayerPosition::netWriteToBuffer(void *buff, u32 len) const {
     
     packet->playerId = playerId.toGlobalId();
     
+    packet->stateFlags = stateFlags;
+    
     packet->padding[0] = 0;
     packet->padding[1] = 0;
-    packet->padding[2] = 0;
 
     packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
 
@@ -180,6 +182,8 @@ NetReturn _PlayerPosition::netReadFromBuffer(PlayerPosition *out, const void *bu
     const implementation::PlayerPosition *packet = (const implementation::PlayerPosition *)buff;
     
     out->playerId = consoleId.fromGlobalId(packet->playerId);
+
+    out->stateFlags = packet->stateFlags;
 
     out->timestamp = packet->timestamp.toHL();
 

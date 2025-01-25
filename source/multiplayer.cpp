@@ -168,10 +168,15 @@ static void updatePackets(MarioActor *mario) {
             else pos.defaultAnmIdx = -1;
 
             pos.anmSpeed = xanime._20->mSpeed;
+            
+            if(MR::isPlayerHipDropFalling() || MR::isPlayerHipDropLand()) {
+                pos.stateFlags |= Packets::PlayerPosition::O_STATE_HIPDROP;
+            }
 
             pos.timestamp = Timestamps::beacon.isInit() ? 
                 Timestamps::beacon.convertToServer(Timestamps::now())
                 : Timestamps::makeEmptyServerTimestamp();
+            
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }

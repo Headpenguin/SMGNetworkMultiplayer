@@ -9,7 +9,7 @@ public:
         SENSOR_BODY = 0,
         NUM_SENSOR_CATEGORIES
     };
-    inline NetActor(const char *name) : LiveActor(name), cooldown(0) {}
+    inline NetActor(const char *name) : LiveActor(name) {}
     inline NetActor() : LiveActor("dummyNetActor") {}
     virtual void init(const JMapInfoIter &);
     virtual bool receiveMsgPlayerAttack(u32, HitSensor*, HitSensor*);
@@ -18,7 +18,6 @@ public:
     virtual void updateHitSensor(HitSensor *);
     
     u32 initCounter;
-    u8 cooldown;
     MarioActor *marioActor;
 };
 

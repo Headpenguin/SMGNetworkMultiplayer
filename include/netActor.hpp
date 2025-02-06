@@ -16,6 +16,8 @@ public:
     virtual bool receiveMsgPush(HitSensor*, HitSensor*);
     virtual void movement();
     virtual void updateHitSensor(HitSensor *);
+
+    static void initStarPieceQueue();
     
     u32 initCounter;
     MarioActor *marioActor;

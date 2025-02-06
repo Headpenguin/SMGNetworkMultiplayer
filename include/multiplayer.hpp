@@ -49,6 +49,7 @@ struct MultiplayerInfo {
 };
 
 extern MultiplayerInfo info;
+extern bool connected;
 
 class MultiplayerAccess {
     Packets::PlayerPosition pos[MAX_PLAYER_COUNT - 1];

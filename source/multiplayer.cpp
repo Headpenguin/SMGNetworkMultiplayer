@@ -12,6 +12,7 @@
 #include "debug.hpp"
 #include "accurateTime.hpp"
 #include "alignment.hpp"
+#include "netActor.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
@@ -48,7 +49,7 @@ void PlayerQueue::addPosition(const Packets::PlayerPosition &p) {
 }}
 */
 static bool initialized;
-static bool connected;
+bool connected;
 
 static const u32 queryCooldown = 60;
 static u32 queryTimer = 0;
@@ -58,7 +59,7 @@ static u32 queryTimer = 0;
 MultiplayerInfo info;
 MultiplayerAccess access;
 
-static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
+Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
 const static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
 const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000024};
@@ -77,6 +78,7 @@ static void init() {
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);
         transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected, &info));
         Timestamps::beacon.init1();
+        NetActor::initStarPieceQueue();
         transmitter.init();
         //sockfd = sd;
         initialized = true;

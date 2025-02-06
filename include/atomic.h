@@ -26,6 +26,31 @@ inline tryLockResult_t simplelock_tryLock(register volatile simplelock_t *pLock)
     return val;
 }
 
+inline tryLockResult_t atomicSet(register volatile void *dst, register unsigned int value, register unsigned int orig) {
+    register unsigned int currValue;
+    register tryLockResult_t ret;
+    asm {
+        lwarx currValue, 0, dst
+        cmp currValue, orig
+        bne- failure
+        stwcx. value, 0, dst
+        beq+ success
+        
+        li ret, 1 // INT
+        b end
+        
+        failure:
+        li ret, 2 // failure
+        b end
+
+        success:
+        li ret, 0 // OK
+        
+        end:
+    };
+    return ret;
+}
+
 inline tryLockResult_t simplelock_tryLockLoop(volatile simplelock_t *pLock) {
     tryLockResult_t ret;
     while((ret = simplelock_tryLock(pLock)) == TRY_LOCK_RESULT_INT);
@@ -34,6 +59,12 @@ inline tryLockResult_t simplelock_tryLockLoop(volatile simplelock_t *pLock) {
 
 inline void simplelock_release(volatile simplelock_t *pLock) {
     *pLock = 0;
+}
+
+inline unsigned int atomicTryUpdate(volatile void *ptr, unsigned int value, unsigned int origValue) {
+    tryLockResult_t ret;
+    while((ret = atomicSet(ptr, value, origValue)) == TRY_LOCK_RESULT_INT);
+    return ret == TRY_LOCK_RESULT_OK;
 }
 
 #ifdef __cplusplus

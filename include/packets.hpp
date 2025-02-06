@@ -14,7 +14,8 @@ enum Tag {
     SERVER_INITIAL_RESPONSE,
     PLAYER_POSITION,
     TIME_QUERY,
-    TIME_RESPONSE
+    TIME_RESPONSE,
+    STAR_PIECE
 };
 
 namespace implementation {

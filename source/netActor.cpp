@@ -3,16 +3,25 @@
 #include "alignment.hpp"
 #include "accurateTime.hpp"
 #include "beacon.hpp"
+#include "StarPieceSync.hpp"
 #include <kamek/hooks.h>
 #include <Game/Util/ActorSensorUtil.hpp>
 #include <Game/LiveActor/HitSensorInfo.hpp>
 #include <Game/Player/MarioHolder.hpp>
 #include <Game/Player/MarioActor.hpp>
+#include <Game/MapObj/StarPieceDirector.hpp>
 static HitSensor netActorSensors[(Multiplayer::MAX_PLAYER_COUNT - 1) * NetActor::NUM_SENSOR_CATEGORIES];
 
 static u8 jumpCooldown[Multiplayer::MAX_PLAYER_COUNT - 1];
 
-NetPlayerActor multiplayerActor;
+ConcurrentQueue<Packets::StarPiece> netStarPieceQueue;
+static ConcurrentQueue<Packets::StarPiece>::Block netStarPieceQueueBuffer[Multiplayer::MAX_PLAYER_COUNT * 2 - 2];
+
+void NetActor::initStarPieceQueue() {
+    netStarPieceQueue.init(netStarPieceQueueBuffer, sizeof netStarPieceQueueBuffer);
+}
+
+static NetPlayerActor multiplayerActor;
 
 static struct MarioGVInfo {
     f32 gvComponent;
@@ -88,6 +97,23 @@ void NetActor::movement() {
     if(mariogvHead == mariogvEnd) mariogvHead = mariogvArray;
     for(u8 *i = jumpCooldown; i < jumpCooldown + sizeof(jumpCooldown) / sizeof(*jumpCooldown); i++) {
         if(*i > 0) (*i)--;
+    }
+
+    const Packets::StarPiece *packet;
+    while(packet = netStarPieceQueue.read()) {
+        // Create a star piece
+        StarPieceDirector *director = (StarPieceDirector *)MR::getSceneObjHolder()->getObj(SceneObj_StarPieceDirector);
+        NetStarPiece *piece = (NetStarPiece*)director->getDeadStarPiece();
+        if(piece) {
+            piece->launchTime = Timestamps::beacon.isInit() ?
+                Timestamps::beacon.convertToLocal(packet->timestamp)
+                : packet->arrivalTime;
+
+            piece->isNetActorGenerated = true;
+
+            piece->throwToTargetCore(packet->initLineEnd, packet->initLineStart, mGravity, 1.0f, true);
+        }
+        netStarPieceQueue.advance();
     }
 }
 

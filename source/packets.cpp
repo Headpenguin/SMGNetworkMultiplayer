@@ -5,6 +5,7 @@
 #include "packets/playerPosition.hpp"
 #include "packets/serverInitialResponse.hpp"
 #include "packets/beacon.hpp"
+#include "packets/starPiece.hpp"
 #include "accurateTime.hpp"
 
 namespace Packets {
@@ -68,6 +69,16 @@ namespace implementation {
         f32 anmSpeed;
     };
 
+    struct StarPiece {
+        u8 playerId;
+        u8 padding[3];
+
+        ServerPacketTimestamp timestamp;
+
+        TVec3f initLineStart;
+        TVec3f initLineEnd;
+    };
+
     struct ServerInitialResponse {
         u32 major;
         u32 minor;
@@ -94,6 +105,7 @@ const u32 _ServerInitialResponse::implementationSize = sizeof(implementation::Se
 const u32 _TimeQuery::implementationSize = sizeof(implementation::TimeQuery);
 u32 _TimeQuery::seqNum = 0;
 const u32 _TimeResponse::implementationSize = sizeof(implementation::TimeResponse);
+const u32 _StarPiece::implementationSize = sizeof(implementation::StarPiece);
 
 NetReturn _Connect::netWriteToBuffer(void *buff, u32 len) const {
     if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
@@ -224,6 +236,38 @@ NetReturn _TimeResponse::netReadFromBuffer(TimeResponse *out, const void *buff, 
     return NetReturn::Ok(implementationSize);
 }
 
+NetReturn _StarPiece::netWriteToBuffer(void *buff, u32 len) const {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    implementation::StarPiece *packet = (implementation::StarPiece *)buff;
 
+    packet->playerId = playerId.toGlobalId();
+   
+    packet->padding[0] = 0;
+    packet->padding[1] = 0;
+    packet->padding[2] = 0;
+
+    packet->timestamp = implementation::ServerPacketTimestamp(timestamp);
+
+    packet->initLineStart = initLineStart;
+    packet->initLineEnd = initLineEnd;
+
+    return NetReturn::Ok(implementationSize);
+}
+
+NetReturn _StarPiece::netReadFromBuffer(StarPiece *out, const void *buff, u32 len) {
+    if(len < implementationSize) return NetReturn::NotEnoughSpace(implementationSize);
+    const implementation::StarPiece *packet = (const implementation::StarPiece *)buff;
+    
+    out->playerId = _PlayerPosition::consoleId.fromGlobalId(packet->playerId);
+
+    out->timestamp = packet->timestamp.toHL();
+
+    out->initLineStart = packet->initLineStart;
+    out->initLineEnd = packet->initLineEnd;
+
+    out->arrivalTime = Timestamps::now();
+
+    return NetReturn::Ok(implementationSize);
+}
 
 }

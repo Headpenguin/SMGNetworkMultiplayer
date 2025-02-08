@@ -7,14 +7,21 @@
 #include "timestamps.hpp"
 #include "packets/playerPosition.hpp"
 
+namespace implementation {
+    class Alignment;
+};
+
 // Persists after receiving new positions
 class AlignmentState {
+    friend class ::implementation::Alignment;
 public:
 
     // Does not persist after receiving new positions
     class HomingAlignmentPlan {
+        friend class ::implementation::Alignment;
         f32 acceleration;
         f32 maxRelativeSpeed;
+        f32 timeout_frames;
         
         f32 sEpsilon, vEpsilon;
 
@@ -29,7 +36,7 @@ public:
         void updateAbsolute();
         void updateReferenceFrame(f32 framesElapsed);
     public:
-        HomingAlignmentPlan(const Packets::PlayerPosition &truePos, f32 acceleration, f32 maxRelativeSpeed, f32 epsilon);
+        HomingAlignmentPlan(const Packets::PlayerPosition &truePos, f32 acceleration, f32 maxRelativeSpeed, f32 timeout_frames, f32 epsilon);
         inline HomingAlignmentPlan() : initFlag(false) {}
         void init(TVec3f &absPos, TVec3f &absVelocity, Timestamps::LocalTimestamp now);
         inline bool isInit() const {

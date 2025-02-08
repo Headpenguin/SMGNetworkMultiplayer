@@ -18,6 +18,7 @@
 const static f32 CORRECTION_ACCEL = 10.0f;
 const static f32 CORRECTION_MAX_V = 15.0f;
 const static f32 CORRECTION_S_EPSILON = 20.0f;
+const static f32 CORRECTION_TIMEOUT_FRAMES = 2.0f * 60.0f;
 
 J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
 Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
@@ -174,7 +175,7 @@ void calcAnim_ep(MarioAnimator *anim) {
             Multiplayer::access.setPlayerPosEstimate(i);
         }
         else {
-            posEstimate.invalidateAlignmentPlan(AlignmentState::HomingAlignmentPlan(pos, CORRECTION_ACCEL, CORRECTION_MAX_V, CORRECTION_S_EPSILON));
+            posEstimate.invalidateAlignmentPlan(AlignmentState::HomingAlignmentPlan(pos, CORRECTION_ACCEL, CORRECTION_MAX_V, CORRECTION_TIMEOUT_FRAMES, CORRECTION_S_EPSILON));
             posEstimate.update(Timestamps::now());
         }
         

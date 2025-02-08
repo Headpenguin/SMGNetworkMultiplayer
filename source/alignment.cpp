@@ -28,9 +28,11 @@ AlignmentState::HomingAlignmentPlan::HomingAlignmentPlan (
     const Packets::PlayerPosition &truePos, 
     f32 acceleration, 
     f32 maxRelativeSpeed,
+    f32 timeout_frames,
     f32 epsilon
 ) : acceleration(acceleration), 
     maxRelativeSpeed(maxRelativeSpeed),
+    timeout_frames(timeout_frames),
     sEpsilon(epsilon),
     vEpsilon(acceleration),
     origin(truePos.position),
@@ -66,6 +68,19 @@ void AlignmentState::HomingAlignmentPlan::init(TVec3f &currPos, TVec3f &currVelo
     initFlag = true;
 }
 
+
+namespace implementation {
+    class Alignment {
+    public:
+        static void stop(AlignmentState::HomingAlignmentPlan &self) {
+            self.relativePosition.zero();
+            self.relativeVelocity.zero();
+            self.updateAbsolute();
+            self.complete = true;
+        }
+    };
+}
+
 void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
     
     if(complete) return;
@@ -73,23 +88,20 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
     updateRelative();
     
     if(MR::isNearZero(relativePosition, sEpsilon * framesElapsed) && MR::isNearZero(relativeVelocity, vEpsilon * framesElapsed)) {
-        relativePosition.zero();
-        relativeVelocity.zero();
-        updateAbsolute();
-        complete = true;
+        implementation::Alignment::stop(*this);
         return;
     }
 
     f32 s = PSVECMag(relativePosition.toCVec());
     f32 v_sq = relativeVelocity.squared();
     f32 v = sqrt(v_sq);
-
-    if(v_sq > (s - sEpsilon * framesElapsed) * acceleration * 2.0f) { // stop
+        
+    if(v_sq > (s - sEpsilon * framesElapsed) * acceleration * 2.0f) { // slow down
         f32 targetSpeed = 1.0f - acceleration * framesElapsed / v;
         targetSpeed = targetSpeed < 0.0f ? 0.0f : targetSpeed;
         relativeVelocity *= targetSpeed;
     }
-    else { // home
+    else { // approach estimate
         f32 speedComponent = v > maxRelativeSpeed ? 
             -relativeVelocity.dot(relativePosition) / s 
             : 0.0f;
@@ -97,6 +109,12 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
         f32 targetSpeed = maxRelativeSpeed > speedComponent ? 
             maxRelativeSpeed 
             : speedComponent;
+
+        if(s / targetSpeed > timeout_frames) {
+            implementation::Alignment::stop(*this);
+            return;
+        }
+
         f32 stopSpeed = sqrt(s * acceleration * 2.0f);
         targetSpeed = stopSpeed < targetSpeed ? stopSpeed : targetSpeed;
     

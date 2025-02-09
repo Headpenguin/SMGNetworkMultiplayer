@@ -105,10 +105,9 @@ void NetActor::movement() {
         StarPieceDirector *director = (StarPieceDirector *)MR::getSceneObjHolder()->getObj(SceneObj_StarPieceDirector);
         NetStarPiece *piece = (NetStarPiece*)director->getDeadStarPiece();
         if(piece) {
-            /*piece->launchTime = Timestamps::beacon.isInit() ?
+            piece->launchTime = Timestamps::beacon.isInit() ?
                 Timestamps::beacon.convertToLocal(packet->timestamp)
-                : packet->arrivalTime;*/
-            piece->launchTime = Timestamps::now();
+                : packet->arrivalTime;
             piece->prevTime = piece->launchTime;
             piece->scalar = 1.0f;
 
@@ -125,7 +124,6 @@ void NetActor::movement() {
 static bool tryGetMariogv(f32 &gv, Timestamps::LocalTimestamp time) {
     MarioGVInfo *start = mariogvHead;
     s32 length = sizeof(mariogvArray) / sizeof(*mariogvArray);
-    MarioGVInfo *idx;
     bool lt = false, gt = false;
     do {
         MarioGVInfo *idx = start + length / 2;
@@ -148,10 +146,10 @@ static bool tryGetMariogv(f32 &gv, Timestamps::LocalTimestamp time) {
 
     if(lt && gt) {
         Timestamps::LocalTimestamp upper, lower;
-        lower = idx->time;
-        upper = idx[1].time;
+        lower = start->time;
+        upper = start[1].time;
         gv = Timestamps::differenceMs(lower, time) < Timestamps::differenceMs(time, upper) ?
-            idx->gvComponent : idx[1].gvComponent;
+            start->gvComponent : start[1].gvComponent;
         return true;
     }
     return false;

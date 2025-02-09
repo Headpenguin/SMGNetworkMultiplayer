@@ -1,15 +1,15 @@
 #ifndef CONCURRENCYUTILS_HPP
 #define CONCURRENCYUTILS_HPP
 
-class ConcurrentQueueInner {
-
-};
+#include "atomic.h"
+#include <revolution/types.h>
+   
 
 // Currently only supports single thread consumption
 // but multithread production (could easily support
 // multithread consumption if desired though)
 template<typename T>
-class ConcurrentQueue : ConcurrentQueueInner{
+class ConcurrentQueue {
     void _write();
 public:
     struct Block {
@@ -23,13 +23,15 @@ public:
         buffer = _buffer;
         len = _len;
 
+        frozen = 0;
+
         readHead = _buffer;
         writeHead = _buffer;
         allocHead = _buffer;
     }
 
     inline const T* read() const {
-        if(readHead != writeHead) return &readHead->data;
+        if(readHead != writeHead || frozen) return &readHead->data;
         return nullptr;
     }
 
@@ -38,25 +40,32 @@ public:
         readHead->isInit = false;
         if(readHead + 1 >= buffer + len) readHead = buffer;
         else readHead++;
+        frozen = false;
     }
     inline bool write(const T &data) {
-        Block *volatile orig;
+        Block *block;
+        {
+            BOOL mask = OSDisableInterrupts();
+            if(frozen) {
+                OSRestoreInterrupts(mask);
+                return false;
+            }
+            block = allocHead++;
+            if(allocHead >= buffer + len) allocHead = buffer;
+            if(allocHead == readHead) frozen = true;
+            OSRestoreInterrupts(mask);
+        }
+        volatile Block *vblock = block;
+
+        block->data = data;
+        vblock->isInit = true;
+
+        if(block != writeHead) return true;
+
         do {
-            orig = allocHead;
-            if(allocHead == readHead) return false;
-        } while(!advanceAtomic(allocHead, orig));
-        volatile Block *block = orig;
-
-        orig->data = data;
-        block->isInit = true;
-
-        orig = writeHead;
-        if(block != orig) return true;
-
-        do {
-            if(!advanceAtomic(writeHead, orig)) return true;
-            orig = writeHead;
-        } while(orig != allocHead && orig->isInit);
+            if(!advanceAtomic(writeHead, block)) return true;
+            block = writeHead;
+        } while(block != allocHead && block->isInit);
         
         return true;
     }
@@ -64,13 +73,14 @@ public:
 private:
     inline bool advanceAtomic(Block *&ptr, Block *orig) {
         Block *dst;
-        orig = ptr;
         dst = orig + 1;
         if(dst >= buffer + len) dst = buffer;
         return atomicTryUpdate(&ptr, (u32)dst, (u32)orig);
     }
     Block *buffer;
     u32 len;
+
+    volatile u32 frozen;
 
     Block *readHead, *writeHead, *allocHead;
 };

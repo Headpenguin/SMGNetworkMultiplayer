@@ -13,32 +13,49 @@
 #include <kamek/hooks.h>
 
 static bool throwToTargetCoreAndBroadcast(NetStarPiece &self, const TVec3f &tip, const TVec3f &tail, const TVec3f &gravity, f32 a, bool isFall) {
+    self.launchTime = Timestamps::now();
+    self.isPlayerGenerated = true;
+    self.isNetActorGenerated = false;
+    self.scalar = 1.0f;
+
     if(Multiplayer::connected) {
         Packets::StarPiece packet;
         packet.playerId = Packets::PlayerPosition::consoleId;
         packet.timestamp = Timestamps::beacon.isInit() ?
-            Timestamps::beacon.convertToServer(Timestamps::now())
+            Timestamps::beacon.convertToServer(self.launchTime)
             : Timestamps::makeEmptyServerTimestamp();
         packet.initLineStart = tail;
         packet.initLineEnd = tip;
-        setDebugMsg(2, transmitter.addPacket(packet).err);
+        setDebugMsg(2, Multiplayer::transmitter.addPacket(packet).err);
     }
-
-    self.isPlayerGenerated = true;
-    self.isNetActorGenerated = false;
 
     return self.throwToTargetCore(tip, tail, gravity, a, isFall);
 }
 
-static void timeAdjust(NetStarPiece &self) {
+extern kmSymbol shoot__16StarPieceShooterFv;
+extern kmSymbol throwToTarget__9StarPieceFP9HitSensorRCQ29JGeometry8TVec3fRCQ29JGeometry8TVec3ff;
+kmCall(&throwToTarget__9StarPieceFP9HitSensorRCQ29JGeometry8TVec3fRCQ29JGeometry8TVec3ff + 0x24, throwToTargetCoreAndBroadcast);
+kmCall(&shoot__16StarPieceShooterFv + 0x118, throwToTargetCoreAndBroadcast);
+kmCall(&shoot__16StarPieceShooterFv + 0x1AC, throwToTargetCoreAndBroadcast);
+kmCall(&shoot__16StarPieceShooterFv + 0x1CC, throwToTargetCoreAndBroadcast);
+
+static void timeAdjust(NetStarPiece &self, bool gravity) {
     Timestamps::LocalTimestamp now = Timestamps::now();
     f32 framesElapsed = Timestamps::differenceMs(self.prevTime, now) / 1000.0f * 60.0f;
-    self.mVelocity *= framesElapsed;
-    
+    f32 framesActive = Timestamps::differenceMs(self.launchTime, now) / 1000.0f * 60.0f;
+    if(gravity) {
+        self.mVelocity *= pow(0.97f, framesElapsed) / self.scalar;
+        self.mVelocity += self.mGravity * framesElapsed; // technically should be geometric sum
+        self.mVelocity *= framesElapsed;
+    }
+    else {
+        //self.mVelocity *= framesElapsed / self.scalar;
+        //self.mVelocity = (self.mDestination - self.mOrigin) * framesActive / 30.0f + self.mOrigin - self.mPosition;
+    }
+    self.scalar = framesElapsed;
     // Adjust mStep and change nerves if necessary
    
-    f32 frames = Timestamps::differenceMs(self.launchTime, now) / 1000.0f * 60.0f;
-    self.mSpine->mStep = frames;
+    self.mSpine->mStep = framesActive;
     if(self.mSpine->mStep < 0) self.mSpine->mStep = 0;
 
     self.prevTime = now;
@@ -46,12 +63,15 @@ static void timeAdjust(NetStarPiece &self) {
 
 static void netStarPieceExeThrow(NetStarPiece &self) {
     self.exeThrow();
-    if(self.isPlayerGenerated || self.isNetActorGenerated) timeAdjust(self);
+    if(self.isPlayerGenerated || self.isNetActorGenerated) timeAdjust(self, false);
 }
 
+// Want to improve this? Change exeThrowFall
 static void netStarPieceExeThrowFall(NetStarPiece &self) {
+    TVec3f tmpV = self.mVelocity;
     self.exeThrowFall();
-    if(self.isPlayerGenerated || self.isNetActorGenerated) timeAdjust(self);
+    self.mVelocity = tmpV;
+    if(self.isPlayerGenerated || self.isNetActorGenerated) timeAdjust(self, true);
 }
 
 // All starbits will check whether or not to maintain a consisten real time speed
@@ -67,7 +87,7 @@ NetStarPiece::NetStarPiece(const char *name) : StarPiece(name) {
 }
 
 void NetStarPiece::kill() {
-    kill();
+    StarPiece::kill();
     isPlayerGenerated = false;
     isNetActorGenerated = false;
 }

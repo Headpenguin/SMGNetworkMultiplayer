@@ -17,6 +17,7 @@ public:
     bool isNetActorGenerated;
     Timestamps::LocalTimestamp launchTime;
     Timestamps::LocalTimestamp prevTime;
+    f32 scalar;
 };
 
 extern ConcurrentQueue<Packets::StarPiece> netStarPieceQueue;

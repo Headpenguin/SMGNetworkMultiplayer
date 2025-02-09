@@ -67,6 +67,13 @@ inline unsigned int atomicTryUpdate(volatile void *ptr, unsigned int value, unsi
     return ret == TRY_LOCK_RESULT_OK;
 }
 
+#define LWARX(label, value, ptr) label: asm {lwarx value, 0, ptr};
+#define STWCX(label, value, ptr) asm {\
+    stwcx. value, 0, ptr; \
+    bne label; \
+}
+#define CLEAR(value, ptr) asm {stwcx. value, 0, ptr}
+
 #ifdef __cplusplus
 }
 #endif

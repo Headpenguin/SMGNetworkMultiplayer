@@ -18,7 +18,7 @@ ConcurrentQueue<Packets::StarPiece> netStarPieceQueue;
 static ConcurrentQueue<Packets::StarPiece>::Block netStarPieceQueueBuffer[Multiplayer::MAX_PLAYER_COUNT * 2 - 2];
 
 void NetActor::initStarPieceQueue() {
-    netStarPieceQueue.init(netStarPieceQueueBuffer, sizeof netStarPieceQueueBuffer);
+    netStarPieceQueue.init(netStarPieceQueueBuffer, sizeof(netStarPieceQueueBuffer)/sizeof(*netStarPieceQueueBuffer));
 }
 
 static NetPlayerActor multiplayerActor;
@@ -105,12 +105,17 @@ void NetActor::movement() {
         StarPieceDirector *director = (StarPieceDirector *)MR::getSceneObjHolder()->getObj(SceneObj_StarPieceDirector);
         NetStarPiece *piece = (NetStarPiece*)director->getDeadStarPiece();
         if(piece) {
-            piece->launchTime = Timestamps::beacon.isInit() ?
+            /*piece->launchTime = Timestamps::beacon.isInit() ?
                 Timestamps::beacon.convertToLocal(packet->timestamp)
-                : packet->arrivalTime;
+                : packet->arrivalTime;*/
+            piece->launchTime = Timestamps::now();
+            piece->prevTime = piece->launchTime;
+            piece->scalar = 1.0f;
 
             piece->isNetActorGenerated = true;
+            piece->isPlayerGenerated = false;
 
+            MR::addStarPiece(1);
             piece->throwToTargetCore(packet->initLineEnd, packet->initLineStart, mGravity, 1.0f, true);
         }
         netStarPieceQueue.advance();

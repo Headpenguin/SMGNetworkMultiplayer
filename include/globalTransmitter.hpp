@@ -4,6 +4,8 @@
 #include "packetProcessor.hpp"
 #include "transmission.hpp"
 
-extern Transmission::Transmitter<Packets::PacketProcessor> transmitter;
+namespace Multiplayer {
+    extern Transmission::Transmitter<Packets::PacketProcessor> transmitter;
+}
 
 #endif

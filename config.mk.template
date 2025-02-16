@@ -10,6 +10,9 @@
 # Path to Bussun
 BUSSUN := ./
 
+# Path to Petari (up-to-date with multiplayer)
+PETARI := ./
+
 # Regions available are USA (RMGE), JPN(RMGJ), KOR(RMGK), PAL(RMGP)
 REGION := USA
 
@@ -35,9 +38,6 @@ CXX := $(MW)/mwcceppc.exe
 
 # Path to Kamek linker
 KAMEK := $(BUSSUN)/deps/Kamek/Kamek.exe
-
-# Path to Petari headers (up-to-date with multiplayer)
-PETARI := $(BUSSUN)/PetariHeaders/
 
 # Path to each library we will include from Petari
 PATH_TO_GAME := $(PETARI)/include 

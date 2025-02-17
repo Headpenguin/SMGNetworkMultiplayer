@@ -13,6 +13,7 @@
 #include "accurateTime.hpp"
 #include "alignment.hpp"
 #include "netActor.hpp"
+#include "uiIpFsTool.hpp"
 
 extern kmSymbol init__10GameSystemFv;
 extern kmSymbol control__10MarioActorFv;
@@ -61,7 +62,8 @@ MultiplayerAccess access;
 
 Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
-const static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
+const static char *IP_ADDR_FS = "serverIP.txt";
+static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
 const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000024};
 
 static void init() {
@@ -73,6 +75,8 @@ static void init() {
 
         u8 *buff = new (32) u8[5 * Packets::MAX_PACKET_SIZE];
         if(buff == nullptr) return;
+
+        serverAddr.addr = readIpAddrFs(SERVER_ADDR_FS);
 
         Transmission::Reader reader(16, buff, Packets::MAX_PACKET_SIZE, sd);
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);

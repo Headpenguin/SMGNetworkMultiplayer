@@ -126,7 +126,7 @@ static void updatePackets(MarioActor *mario) {
             //pos.direction = mario->mRotation;
             const Mtx &baseMtx = mario->getJ3DModel()->_24;
             TVec3f X(baseMtx[0][0], baseMtx[1][0], baseMtx[2][0]);
-            f32 magx = PSVECMag(X.toCVec());
+            f32 magx = PSVECMag(&X);
 
             f32 r = 1 / magx;
             pos.direction.x = X.x * r;
@@ -145,7 +145,7 @@ static void updatePackets(MarioActor *mario) {
                 v.setLength(1);
                 pos.direction.z = (v.x * baseMtx[0][1] + v.z * baseMtx[2][1]) * r;
             }
-            PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
+            PSVECCrossProduct(&v, &X, &u);
             if(y.dot(u) < 0.0f) pos.direction.z += 3.0f;
 
             const XanimePlayer &xanime = *mario->mMarioAnim->mXanimePlayer;

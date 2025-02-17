@@ -149,7 +149,7 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
         return;
     }
 
-    f32 s = PSVECMag(relativePosition.toCVec());
+    f32 s = PSVECMag(&relativePosition);
     f32 v_sq = relativeVelocity.squared();
     f32 v = sqrt(v_sq);
 
@@ -176,12 +176,12 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
         TVec3f velocityChange = velocityDifferenceCurrentTarget;
         velocityChange.setLength(framesElapsed * acceleration);
 
-        f32 maxChange = PSVECMag(velocityDifferenceCurrentTarget.toCVec());
-        if(maxChange < PSVECMag(velocityChange.toCVec())) {
+        f32 maxChange = PSVECMag(&velocityDifferenceCurrentTarget);
+        if(maxChange < PSVECMag(&velocityChange)) {
             velocityChange.setLength(maxChange);
         }
         relativeVelocity += velocityChange;
-        if(PSVECMag(relativeVelocity.toCVec()) > targetSpeed) relativeVelocity.setLength(targetSpeed);
+        if(PSVECMag(&relativeVelocity) > targetSpeed) relativeVelocity.setLength(targetSpeed);
     }
 
     updateAbsolute();
@@ -259,10 +259,10 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);*/
         currXanime->mCore->_6 = 3;
-        model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
+        model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
         model->calcWeightEnvelopeMtx();
         buffs[i].calcNrmMtx();
-        buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
+        buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
         DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
         DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
         currXanime->clearAnm(0);
@@ -391,14 +391,14 @@ void calcAnim_ep(MarioAnimator *anim) {
             v.z = -X.x;
         }
         f32 z = pos.direction.z - (isYOrthoNegative ? 3.0f : 0.0f);
-        PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
+        PSVECCrossProduct(&v, &X, &u);
         v.setLength(z);
         tmp = 1 - z*z;
         u.setLength(sqrt(tmp < 0.0f ? 0.0f : tmp));
         if(isYOrthoNegative) u = -u;
         Y = u + v;
         TVec3f Z;
-        PSVECCrossProduct(X.toCVec(), Y.toCVec(), Z.toVec());
+        PSVECCrossProduct(&X, &Y, &Z);
         
         baseMtx[0][0] = X.x;
         baseMtx[0][1] = Y.x;
@@ -486,7 +486,7 @@ void drawModel2(MarioActor *actor) {
    // actor->mMarioAnim->calc();
    
 //    model->calc();
-    model->mModelData->mJointTree.calc(model->_84, *model->_18.toCVec(), model->_24);
+    model->mModelData->mJointTree.calc(model->_84, model->_18, model->_24);
     model->calcWeightEnvelopeMtx();
 //    if(model->_10) model->_10(model, 0);
     

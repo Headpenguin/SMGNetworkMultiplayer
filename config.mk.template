@@ -41,14 +41,14 @@ KAMEK := $(BUSSUN)/deps/Kamek/Kamek.exe
 
 # Path to each library we will include from Petari
 PATH_TO_GAME := $(PETARI)/include 
-PATH_TO_RFL := $(PETARI)/RVLFaceLib/include
-PATH_TO_RVL := $(PETARI)/RVL_SDK/include 
-PATH_TO_TRK := $(PETARI)/MetroTRK/include 
-PATH_TO_RUNTIME := $(PETARI)/Runtime/include 
-PATH_TO_MSL_C := $(PETARI)/MSL_C/include 
-PATH_TO_MSL_CPP := $(PETARI)/MSL_C++/include 
-PATH_TO_JSYS := $(PETARI)/JSystem/include 
-PATH_TO_NW4R := $(PETARI)/nw4r/include
+PATH_TO_RFL := $(PETARI)/libs/RVLFaceLib/include
+PATH_TO_RVL := $(PETARI)/libs/RVL_SDK/include 
+PATH_TO_TRK := $(PETARI)/libs/MetroTRK/include 
+PATH_TO_RUNTIME := $(PETARI)/libs/Runtime/include 
+PATH_TO_MSL_C := $(PETARI)/libs/MSL_C/include 
+PATH_TO_MSL_CPP := $(PETARI)/libs/MSL_C++/include 
+PATH_TO_JSYS := $(PETARI)/libs/JSystem/include 
+PATH_TO_NW4R := $(PETARI)/libs/nw4r/include
 
 # Path to Bussun files (kamek header files, etc.)
 BUSSUN_INCLUDE := $(BUSSUN)/include/

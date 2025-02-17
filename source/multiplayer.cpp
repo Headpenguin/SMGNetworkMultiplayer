@@ -62,7 +62,7 @@ MultiplayerAccess access;
 
 Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
-const static char *IP_ADDR_FS = "serverIP.txt";
+const static char *SERVER_ADDR_FS = "serverIP.txt";
 static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
 const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000024};
 

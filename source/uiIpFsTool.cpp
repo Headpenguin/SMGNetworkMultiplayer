@@ -1,5 +1,6 @@
 #include "uiIpFsTool.hpp"
 #include <revolution/types.h>
+#include <revolution/dvd.h>
 
 static bool _isDigit(char c) {
     return '0' <= c && c <= '9';
@@ -37,7 +38,7 @@ static long _decode(u8 *buff, u32 len) {
 }
 
 long readIpAddrFs(const char *path) {
-    int pathId = DVDConvertPathToEntryNum(path);
+    int pathId = DVDConvertPathToEntrynum(path);
 
     if(pathId < 0) return -1;
 
@@ -45,7 +46,7 @@ long readIpAddrFs(const char *path) {
     if(!DVDFastOpen(pathId, &fileInfo)) return -1;
 
     u8 buff[40] __attribute__((aligned(32)));
-    s32 len = DVDReadPrio(fileInfo, buff, sizeof buff, 0, 2); // uses same prio as loader, maybe it shouldn't?
+    s32 len = DVDReadPrio(&fileInfo, buff, sizeof buff, 0, 2); // uses same prio as loader, maybe it shouldn't?
     if(len < 0) return -1;
     return _decode(buff, len);
 }

@@ -86,10 +86,10 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);*/
         currXanime->mCore->_6 = 3;
-        model->mModelData->mJointTree.calc(buffs + i, *model->_18.toCVec(), model->_24); // maybe can fix issue above?
+        model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
         model->calcWeightEnvelopeMtx();
         buffs[i].calcNrmMtx();
-        buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);
+        buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
         DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
         DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
         currXanime->clearAnm(0);
@@ -208,14 +208,14 @@ void calcAnim_ep(MarioAnimator *anim) {
             v.z = -X.x;
         }
         f32 z = pos.direction.z - (isYOrthoNegative ? 3.0f : 0.0f);
-        PSVECCrossProduct(v.toCVec(), X.toCVec(), u.toVec());
+        PSVECCrossProduct(&v, &X, &u);
         v.setLength(z);
         tmp = 1 - z*z;
         u.setLength(sqrt(tmp < 0.0f ? 0.0f : tmp));
         if(isYOrthoNegative) u = -u;
         Y = u + v;
         TVec3f Z;
-        PSVECCrossProduct(X.toCVec(), Y.toCVec(), Z.toVec());
+        PSVECCrossProduct(&X, &Y, &Z);
         
         baseMtx[0][0] = X.x;
         baseMtx[0][1] = Y.x;
@@ -303,7 +303,7 @@ void drawModel2(MarioActor *actor) {
    // actor->mMarioAnim->calc();
    
 //    model->calc();
-    model->mModelData->mJointTree.calc(model->_84, *model->_18.toCVec(), model->_24);
+    model->mModelData->mJointTree.calc(model->_84, model->_18, model->_24);
     model->calcWeightEnvelopeMtx();
 //    if(model->_10) model->_10(model, 0);
     

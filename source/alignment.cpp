@@ -92,7 +92,7 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
         return;
     }
 
-    f32 s = PSVECMag(relativePosition.toCVec());
+    f32 s = PSVECMag(&relativePosition);
     f32 v_sq = relativeVelocity.squared();
     f32 v = sqrt(v_sq);
         
@@ -125,12 +125,12 @@ void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
         TVec3f velocityChange = velocityDifferenceCurrentTarget;
         velocityChange.setLength(framesElapsed * acceleration);
 
-        f32 maxChange = PSVECMag(velocityDifferenceCurrentTarget.toCVec());
-        if(maxChange < PSVECMag(velocityChange.toCVec())) {
+        f32 maxChange = PSVECMag(&velocityDifferenceCurrentTarget);
+        if(maxChange < PSVECMag(&velocityChange)) {
             velocityChange.setLength(maxChange);
         }
         relativeVelocity += velocityChange;
-        if(PSVECMag(relativeVelocity.toCVec()) > targetSpeed) relativeVelocity.setLength(targetSpeed);
+        if(PSVECMag(&relativeVelocity) > targetSpeed) relativeVelocity.setLength(targetSpeed);
     }
 
     updateAbsolute();

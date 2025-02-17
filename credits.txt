@@ -1,0 +1,17 @@
+Credits:
+
+People:
+shibboleet (https://github.com/shibbo; for starting/working on/maintaining the below projects extensively and helping me learn many of the skills needed to make this mod)
+Aurum, for building on Syati (of which Bussun is essentially just a carbon copy), cultivating the community, and much other research of the game
+
+Tools:
+Kamek (https://github.com/Treeki/Kamek)
+Petari (https://github.com/SMGCommunity/Petari)
+Bussun (https://github.com/SMGCommunity/Bussun)
+
+Other:
+WiiBrew (https://wiibrew.org) and libogc (https://github.com/devkitPro/libogc/blob/master/libogc/network_wii.c) for determining IOS interfaces
+Yet Another Gamecube Documentation (https://www.gc-forever.com/yagcd/)
+SMGCommunity (https://github.com/SMGCommunity; for housing the above projects)
+Lumas workshop wiki (https://www.lumasworkshop.com/wiki/Main_Page)
+

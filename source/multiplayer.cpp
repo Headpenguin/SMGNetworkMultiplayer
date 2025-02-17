@@ -62,9 +62,10 @@ MultiplayerAccess access;
 
 Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
-const static char *SERVER_ADDR_FS = "serverIP.txt";
-static sockaddr_in serverAddr = {8, 2, 5029, 0x0A000060};
-const static sockaddr_in debugAddr = {8, 2, 5001, 0x0A000024};
+const static char *SERVER_ADDR_FS = "/CustomCode/serverIP.txt";
+const static char *DEBUG_ADDR_FS = "/CustomCode/debugIP.txt";
+static sockaddr_in serverAddr = {8, 2, 5029, 0};
+const static sockaddr_in debugAddr = {8, 2, 5001, 0};
 
 static void init() {
     if(!initialized) {
@@ -76,7 +77,8 @@ static void init() {
         u8 *buff = new (32) u8[5 * Packets::MAX_PACKET_SIZE];
         if(buff == nullptr) return;
 
-        serverAddr.addr = readIpAddrFs(SERVER_ADDR_FS);
+        readIpAddrFs(SERVER_ADDR_FS, &serverAddr);
+        readIpAddrFs(DEBUG_ADDR_FS, &debugAddr);
 
         Transmission::Reader reader(16, buff, Packets::MAX_PACKET_SIZE, sd);
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);

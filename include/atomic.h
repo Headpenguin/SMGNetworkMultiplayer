@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 typedef unsigned long simplelock_t;
+typedef int BOOL;
 
 typedef enum {
     TRY_LOCK_RESULT_OK = 0,
@@ -61,10 +62,32 @@ inline void simplelock_release(volatile simplelock_t *pLock) {
     *pLock = 0;
 }
 
-inline unsigned int atomicTryUpdate(volatile void *ptr, unsigned int value, unsigned int origValue) {
+inline BOOL atomicTryUpdate(volatile void *ptr, unsigned int value, unsigned int origValue) {
     tryLockResult_t ret;
     while((ret = atomicSet(ptr, value, origValue)) == TRY_LOCK_RESULT_INT);
     return ret == TRY_LOCK_RESULT_OK;
+}
+
+typedef unsigned long sem_t;
+
+inline void sem_init(sem_t *sem, unsigned long val) {*sem = val;}
+
+inline BOOL sem_down(volatile sem_t *sem) {
+    BOOL succ = 0;
+    while(!succ) {
+        sem_t val = *sem;
+        if(val == 0) break;
+        succ = atomicTryUpdate(sem, val - 1, val);
+    }
+    return succ;
+}
+
+inline void sem_up(volatile sem_t *sem) {
+    BOOL succ = 0;
+    while(!succ) {
+        sem_t val = *sem;
+        succ = atomicTryUpdate(sem, val + 1, val);
+    }
 }
 
 #define LWARX(label, value, ptr) label: asm {lwarx value, 0, ptr};

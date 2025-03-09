@@ -65,7 +65,7 @@ Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 const static char *SERVER_ADDR_FS = "/CustomCode/serverIP.txt";
 const static char *DEBUG_ADDR_FS = "/CustomCode/debugIP.txt";
 static sockaddr_in serverAddr = {8, 2, 5029, 0};
-const static sockaddr_in debugAddr = {8, 2, 5001, 0};
+static sockaddr_in debugAddr = {8, 2, 5001, 0};
 
 static void init() {
     if(!initialized) {

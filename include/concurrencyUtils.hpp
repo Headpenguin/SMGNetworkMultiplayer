@@ -23,15 +23,16 @@ public:
         buffer = _buffer;
         len = _len;
 
-        frozen = 0;
-
         readHead = _buffer;
         writeHead = _buffer;
         allocHead = _buffer;
+
+        sem_init(&empty, len);
+        sem_init(&full, 0);
     }
 
     inline const T* read() const {
-        if(readHead != writeHead || frozen) return &readHead->data;
+        if(full > 0) return &readHead->data; // not an issue for now since single reader
         return nullptr;
     }
 
@@ -40,21 +41,17 @@ public:
         readHead->isInit = false;
         if(readHead + 1 >= buffer + len) readHead = buffer;
         else readHead++;
-        frozen = false;
+        sem_down(&full);
+        sem_up(&empty);
     }
     inline bool write(const T &data) {
+        if(!sem_down(&empty)) return false;
+
         Block *block;
-        {
-            BOOL mask = OSDisableInterrupts();
-            if(frozen) {
-                OSRestoreInterrupts(mask);
-                return false;
-            }
-            block = allocHead++;
-            if(allocHead >= buffer + len) allocHead = buffer;
-            if(allocHead == readHead) frozen = true;
-            OSRestoreInterrupts(mask);
-        }
+        do {
+            block = allocHead;
+        } while(!advanceAtomic(allocHead, block));
+
         volatile Block *vblock = block;
 
         block->data = data;
@@ -64,6 +61,7 @@ public:
 
         do {
             if(!advanceAtomic(writeHead, block)) return true;
+            sem_up(&full);
             block = writeHead;
         } while(block != allocHead && block->isInit);
         
@@ -80,9 +78,9 @@ private:
     Block *buffer;
     u32 len;
 
-    volatile u32 frozen;
-
     Block *readHead, *writeHead, *allocHead;
+
+    sem_t empty, full;
 };
 
 #endif

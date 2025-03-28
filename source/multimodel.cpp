@@ -2,6 +2,7 @@
 #include <Game/Player/MarioAnimator.hpp>
 #include <Game/Player/J3DModelX.hpp>
 #include <Game/Util/CameraUtil.hpp>
+#include <Game/LiveActor/ClippingJudge.hpp>
 #include <JSystem/J3DGraphAnimator/J3DMtxBuffer.hpp>
 #include <JSystem/J3DGraphAnimator/J3DJoint.hpp>
 #include <JSystem/J3DGraphBase/J3DSys.hpp>
@@ -30,6 +31,8 @@ static XanimeWrapper xanimeUpperWrapper[Multiplayer::MAX_PLAYER_COUNT - 1];
 static XanimePlayer *playerXanimes = (XanimePlayer *)xanimeWrapper;
 static XanimePlayer *playerUpperXanimes = (XanimePlayer *)xanimeUpperWrapper;
 
+static bool dbgMtxHandledFlags[7];
+
 void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffer *dstArray, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
         memcpy(dstArray + i, basis, sizeof(*basis));
@@ -40,6 +43,9 @@ void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffe
 J3DModelX* createMtxBuffers_ep(MarioActor *self) {
     J3DModelX *model = (J3DModelX*) MR::getJ3DModel(self);
     createMtxBuffers(model->mModelData, model->_84, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1); // inconsistent
+
+    for(u32 i = 0; i < 7; i++) dbgMtxHandledFlags[i] = false;
+
     return model;
 }
 
@@ -64,13 +70,24 @@ void createXanimes(MarioAnimator *anim) {
 extern kmSymbol __ct__13MarioAnimatorFP10MarioActor;
 kmCall(&__ct__13MarioAnimatorFP10MarioActor + 0x24, createXanimes);
 
-static bool dbgMtxHandledFlags[7];
+static bool isPlayerClipped[Multiplayer::MAX_PLAYER_COUNT - 1];
 
 void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
     j3dSys.mCurrentModel = model;
     for(u32 i = 0; i < numBuffs; i++) {
-        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
         
+        if(!Multiplayer::getMostRecentBuffer (
+            i, Multiplayer::info.activityStatus
+        ) ) continue;
+
+        if(MR::getClippingJudge()->isJudgedToClipFrustum (
+            Multiplayer::access.getPlayerPosEstimate(i).getPos(), 60.0f, 6
+        ) ) { // See LiveActor/ClippingJudge.cpp for final argument
+            isPlayerClipped[i] = true;
+            continue;
+        }
+        isPlayerClipped[i] = false;
+
         PSMTXCopy(base[i], model->_24); // inefficient!
         model->_84 = buffs + i;
         
@@ -88,15 +105,13 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);*/
         currXanime->mCore->_6 = 3;
-        if(!dbgMtxHandledFlags[i]) {
-            model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
-            model->calcWeightEnvelopeMtx();
-            buffs[i].calcNrmMtx();
-            buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
-            DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
-            DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
-            dbgMtxHandledFlags[i] = true;
-        }
+        model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
+        model->calcWeightEnvelopeMtx();
+        buffs[i].calcNrmMtx();
+        buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
+        DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
+        DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
+        dbgMtxHandledFlags[i] = true;
         currXanime->clearAnm(0);
     }
 }
@@ -270,7 +285,8 @@ void drawAll(J3DModelX *model, J3DMtxBuffer *buffs, u32 numBuffs) {
     MR::showJoint(model, "HandL0");
     MR::showJoint(model, "HandR0");
     for(u32 i = 0; i < numBuffs; i++) {
-        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+        // TODO: activityStatus/isPlayerActive causes a race condition in a few places
+        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus) || isPlayerClipped[i]) continue;
         model->_84 = buffs + i;
         model->prepareShapePackets();
         model->directDraw(nullptr);

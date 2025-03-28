@@ -64,6 +64,8 @@ void createXanimes(MarioAnimator *anim) {
 extern kmSymbol __ct__13MarioAnimatorFP10MarioActor;
 kmCall(&__ct__13MarioAnimatorFP10MarioActor + 0x24, createXanimes);
 
+static bool dbgMtxHandledFlags[7];
+
 void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
     j3dSys.mCurrentModel = model;
     for(u32 i = 0; i < numBuffs; i++) {
@@ -86,12 +88,15 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         buffs[i].calcNrmMtx();
         buffs[i].calcDrawMtx(model->_8 & 3, *model->_18.toCVec(), model->_24);*/
         currXanime->mCore->_6 = 3;
-        model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
-        model->calcWeightEnvelopeMtx();
-        buffs[i].calcNrmMtx();
-        buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
-        DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
-        DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
+        if(!dbgMtxHandledFlags[i]) {
+            model->mModelData->mJointTree.calc(buffs + i, model->_18, model->_24); // maybe can fix issue above?
+            model->calcWeightEnvelopeMtx();
+            buffs[i].calcNrmMtx();
+            buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
+            DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
+            DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
+            dbgMtxHandledFlags[i] = true;
+        }
         currXanime->clearAnm(0);
     }
 }

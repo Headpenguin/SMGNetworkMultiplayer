@@ -31,8 +31,6 @@ static XanimeWrapper xanimeUpperWrapper[Multiplayer::MAX_PLAYER_COUNT - 1];
 static XanimePlayer *playerXanimes = (XanimePlayer *)xanimeWrapper;
 static XanimePlayer *playerUpperXanimes = (XanimePlayer *)xanimeUpperWrapper;
 
-static bool dbgMtxHandledFlags[7];
-
 void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffer *dstArray, u32 numBuffs) {
     for(u32 i = 0; i < numBuffs; i++) {
         memcpy(dstArray + i, basis, sizeof(*basis));
@@ -43,8 +41,6 @@ void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffe
 J3DModelX* createMtxBuffers_ep(MarioActor *self) {
     J3DModelX *model = (J3DModelX*) MR::getJ3DModel(self);
     createMtxBuffers(model->mModelData, model->_84, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1); // inconsistent
-
-    for(u32 i = 0; i < 7; i++) dbgMtxHandledFlags[i] = false;
 
     return model;
 }
@@ -111,7 +107,6 @@ void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffe
         buffs[i].calcDrawMtx(model->_8 & 3, model->_18, model->_24);
         DCStoreRangeNoSync(buffs[i].mpDrawMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx));
         DCStoreRange(buffs[i].mpNrmMtxArr[1][buffs[i].mCurrentViewNo], model->mModelData->mJointTree.mMatrixData.mDrawMatrixCount * sizeof(Mtx33));
-        dbgMtxHandledFlags[i] = true;
         currXanime->clearAnm(0);
     }
 }

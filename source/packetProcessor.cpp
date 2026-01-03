@@ -4,6 +4,7 @@
 #include "packets/serverInitialResponse.hpp"
 #include "packets/playerPosition.hpp"
 #include "packets/beacon.hpp"
+#include "StarPieceSync.hpp"
 #include "beacon.hpp"
 
 namespace Packets {
@@ -35,6 +36,15 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
 
             break;
         }
+        case STAR_PIECE:
+        {
+            StarPiece packet;
+            NetReturn res = StarPiece::netReadFromBuffer(&packet, buffer, len);
+            if(res.err != NetReturn::OK) return res;
+
+            netStarPieceQueue.write(packet);
+            break;
+        }
         case PLAYER_POSITION:
         {
             PlayerPosition pos;
@@ -56,7 +66,13 @@ NetReturn PacketProcessor::process(Tag tag, const u8 *buffer, u32 len) {
             }
 
  //           doubleBuff.pos[buffIdx].addPosition(pos);
-            doubleBuff.pos[buffIdx] = pos;
+            Packets::PlayerPosition &bufPos = doubleBuff.pos[buffIdx];
+            if (
+                Timestamps::isEmpty(bufPos.timestamp) 
+                || bufPos.timestamp < pos.timestamp
+            ) {
+                bufPos = pos;
+            }
 
             simplelock_release(&doubleBuff.locks[buffIdx]);
 

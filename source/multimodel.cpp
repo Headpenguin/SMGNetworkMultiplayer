@@ -2,6 +2,7 @@
 #include <Game/Player/MarioAnimator.hpp>
 #include <Game/Player/J3DModelX.hpp>
 #include <Game/Util/CameraUtil.hpp>
+#include <Game/LiveActor/ClippingJudge.hpp>
 #include <JSystem/J3DGraphAnimator/J3DMtxBuffer.hpp>
 #include <JSystem/J3DGraphAnimator/J3DJoint.hpp>
 #include <JSystem/J3DGraphBase/J3DSys.hpp>
@@ -11,187 +12,14 @@
 #include "beacon.hpp"
 #include "debug.hpp"
 #include "accurateTime.hpp"
+#include "alignment.hpp"
 
 //static const BASE_INTERPOLATE_EPSILON = 0.1f;
 
-const static f32 STANDARD_FPS = 60.0f;
 const static f32 CORRECTION_ACCEL = 10.0f;
 const static f32 CORRECTION_MAX_V = 15.0f;
 const static f32 CORRECTION_S_EPSILON = 20.0f;
-
-// Persists after receiving new positions
-class AlignmentState {
-public:
-
-    // Does not persist after receiving new positions
-    class HomingAlignmentPlan {
-        f32 acceleration;
-        f32 maxRelativeSpeed;
-        
-        f32 sEpsilon, vEpsilon;
-
-        TVec3f origin, referenceVelocity;
-        TVec3f relativePosition, relativeVelocity;
-        TVec3f *absPosition, *absVelocity;
-        Timestamps::LocalTimestamp time;
-        bool initFlag;
-        bool complete;
-
-        void updateRelative();
-        void updateAbsolute();
-        void updateReferenceFrame(f32 framesElapsed);
-    public:
-        HomingAlignmentPlan(const Packets::PlayerPosition &truePos, f32 acceleration, f32 maxRelativeSpeed, f32 epsilon);
-        inline HomingAlignmentPlan() : initFlag(false) {}
-        void init(TVec3f &absPos, TVec3f &absVelocity, Timestamps::LocalTimestamp now);
-        inline bool isInit() const {
-            return initFlag;
-        }
-        void update(f32 framesElapsed);
-        inline bool isInvalid(const HomingAlignmentPlan &other) const {
-            return other.time > time || !initFlag;
-        }
-    };
-
-private:
-    HomingAlignmentPlan plan;
-    TVec3f position;
-    TVec3f velocity;
-    Timestamps::LocalTimestamp time;
-
-public:
-
-    inline AlignmentState() {}
-    AlignmentState(const TVec3f &pos, const TVec3f &velocity, Timestamps::LocalTimestamp time);
-
-    // Could use more generic AlignmentPlan if implemented
-    void invalidateAlignmentPlan(const HomingAlignmentPlan &plan);
-    void update(Timestamps::LocalTimestamp now);
-
-    const TVec3f& getPos() const;
-
-};
-
-AlignmentState::AlignmentState(const TVec3f &pos, const TVec3f &velocity, Timestamps::LocalTimestamp time) 
-    : position(pos), velocity(velocity), time(time), plan() {}
-
-void AlignmentState::invalidateAlignmentPlan(const AlignmentState::HomingAlignmentPlan &_plan) {
-    if(plan.isInvalid(_plan)) {
-        plan = _plan;
-        plan.init(position, velocity, time);
-    }
-}
-
-void AlignmentState::update(Timestamps::LocalTimestamp now) {
-    f32 framesElapsed = Timestamps::differenceMs(time, now) /** realtimeRate*/ / 1000.0f * STANDARD_FPS;
-    if(plan.isInit()) plan.update(framesElapsed);
-    position += velocity * framesElapsed;
-    time = now;
-}
-
-const TVec3f& AlignmentState::getPos() const {
-    return position;
-}
-
-AlignmentState::HomingAlignmentPlan::HomingAlignmentPlan (
-    const Packets::PlayerPosition &truePos, 
-    f32 acceleration, 
-    f32 maxRelativeSpeed,
-    f32 epsilon
-) : acceleration(acceleration), 
-    maxRelativeSpeed(maxRelativeSpeed),
-    sEpsilon(epsilon),
-    vEpsilon(acceleration),
-    origin(truePos.position),
-    referenceVelocity(truePos.velocity),
-    initFlag(false),
-    complete(false)
-{
-    time = Timestamps::beacon.isInit() && !Timestamps::isEmpty(truePos.timestamp) ?
-        Timestamps::beacon.convertToLocal(truePos.timestamp)
-        : truePos.arrivalTime;
-}
-
-void AlignmentState::HomingAlignmentPlan::updateRelative() {
-    relativePosition = *absPosition - origin;
-    relativeVelocity = *absVelocity - referenceVelocity;
-}
-
-void AlignmentState::HomingAlignmentPlan::updateAbsolute() {
-    *absPosition = relativePosition + origin;
-    *absVelocity = relativeVelocity + referenceVelocity;
-}
-
-void AlignmentState::HomingAlignmentPlan::updateReferenceFrame(f32 framesElapsed) {
-    TVec3f ds = referenceVelocity * framesElapsed;
-    origin += ds;
-}
-
-void AlignmentState::HomingAlignmentPlan::init(TVec3f &currPos, TVec3f &currVelocity, Timestamps::LocalTimestamp now) {
-    absPosition = &currPos;
-    absVelocity = &currVelocity;
-    f32 framesElapsed = Timestamps::differenceMs(time, now) / 1000.0f * STANDARD_FPS;
-    updateReferenceFrame(framesElapsed);
-    initFlag = true;
-}
-
-void AlignmentState::HomingAlignmentPlan::update(f32 framesElapsed) {
-    
-    if(complete) return;
-
-    updateRelative();
-    
-    if(MR::isNearZero(relativePosition, sEpsilon * framesElapsed) && MR::isNearZero(relativeVelocity, vEpsilon * framesElapsed)) {
-        relativePosition.zero();
-        relativeVelocity.zero();
-        updateAbsolute();
-        complete = true;
-        return;
-    }
-
-    f32 s = PSVECMag(&relativePosition);
-    f32 v_sq = relativeVelocity.squared();
-    f32 v = sqrt(v_sq);
-
-    if(v_sq > (s - sEpsilon * framesElapsed) * acceleration * 2.0f) { // stop
-        f32 targetSpeed = 1.0f - acceleration * framesElapsed / v;
-        targetSpeed = targetSpeed < 0.0f ? 0.0f : targetSpeed;
-        relativeVelocity *= targetSpeed;
-    }
-    else { // home
-        f32 speedComponent = v > maxRelativeSpeed ? 
-            -relativeVelocity.dot(relativePosition) / s 
-            : 0.0f;
-
-        f32 targetSpeed = maxRelativeSpeed > speedComponent ? 
-            maxRelativeSpeed 
-            : speedComponent;
-        f32 stopSpeed = sqrt(s * acceleration * 2.0f);
-        targetSpeed = stopSpeed < targetSpeed ? stopSpeed : targetSpeed;
-    
-        TVec3f velocityDifferenceCurrentTarget = -relativePosition;
-        velocityDifferenceCurrentTarget.setLength(targetSpeed);
-        velocityDifferenceCurrentTarget -= relativeVelocity;
-
-        TVec3f velocityChange = velocityDifferenceCurrentTarget;
-        velocityChange.setLength(framesElapsed * acceleration);
-
-        f32 maxChange = PSVECMag(&velocityDifferenceCurrentTarget);
-        if(maxChange < PSVECMag(&velocityChange)) {
-            velocityChange.setLength(maxChange);
-        }
-        relativeVelocity += velocityChange;
-        if(PSVECMag(&relativeVelocity) > targetSpeed) relativeVelocity.setLength(targetSpeed);
-    }
-
-    updateAbsolute();
-    updateReferenceFrame(framesElapsed);
-}
-
-static struct {
-    AlignmentState state;
-    bool isInit;
-} alignmentStates[Multiplayer::MAX_PLAYER_COUNT - 1];
+const static f32 CORRECTION_TIMEOUT_FRAMES = 2.0f * 60.0f;
 
 J3DMtxBuffer playerBuffs[Multiplayer::MAX_PLAYER_COUNT - 1];
 Mtx playerBaseMtx[Multiplayer::MAX_PLAYER_COUNT - 1];
@@ -213,6 +41,7 @@ void createMtxBuffers(J3DModelData *data, const J3DMtxBuffer *basis, J3DMtxBuffe
 J3DModelX* createMtxBuffers_ep(MarioActor *self) {
     J3DModelX *model = (J3DModelX*) MR::getJ3DModel(self);
     createMtxBuffers(model->mModelData, model->_84, playerBuffs, Multiplayer::MAX_PLAYER_COUNT - 1); // inconsistent
+
     return model;
 }
 
@@ -237,11 +66,24 @@ void createXanimes(MarioAnimator *anim) {
 extern kmSymbol __ct__13MarioAnimatorFP10MarioActor;
 kmCall(&__ct__13MarioAnimatorFP10MarioActor + 0x24, createXanimes);
 
+static bool isPlayerClipped[Multiplayer::MAX_PLAYER_COUNT - 1];
+
 void calcAnim(MarioAnimator *anim, J3DModel *model, const Mtx *base, J3DMtxBuffer *buffs, u32 numBuffs) {
     j3dSys.mCurrentModel = model;
     for(u32 i = 0; i < numBuffs; i++) {
-        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
         
+        if(!Multiplayer::getMostRecentBuffer (
+            i, Multiplayer::info.activityStatus
+        ) ) continue;
+
+        if(MR::getClippingJudge()->isJudgedToClipFrustum (
+            Multiplayer::access.getPlayerPosEstimate(i).getPos(), 60.0f, 6
+        ) ) { // See LiveActor/ClippingJudge.cpp for final argument
+            isPlayerClipped[i] = true;
+            continue;
+        }
+        isPlayerClipped[i] = false;
+
         PSMTXCopy(base[i], model->_24); // inefficient!
         model->_84 = buffs + i;
         
@@ -329,42 +171,32 @@ void calcAnim_ep(MarioAnimator *anim) {
     J3DModel *model = anim->mActor->getJ3DModel();
     
     for(u32 i = 0; i < Multiplayer::MAX_PLAYER_COUNT - 1; i++) {
-        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+        if(!Multiplayer::access.isPlayerActive(i)) continue;
 
-        u32 buffIdx = Multiplayer::getMostRecentBuffer(i, Multiplayer::info.status);
-        Multiplayer::PlayerDoubleBuffer &doubleBuffer = Multiplayer::info.players[i];
+        const Packets::PlayerPosition &pos = Multiplayer::access.getPlayerPosRaw(i);
 
-        if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
-            buffIdx = buffIdx == 1 ? 0 : 1;
-            if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
-                continue; // invalid state
-            }
-        }
+        AlignmentState &posEstimate = Multiplayer::access.getPlayerPosEstimate(i);
 
-        const Packets::PlayerPosition pos = doubleBuffer.pos[buffIdx];
-        
-        simplelock_release(&doubleBuffer.locks[buffIdx]);
-
-        if(!alignmentStates[i].isInit) {
+        if(!Multiplayer::access.isPlayerPosEstimateSet(i)) {
             
-            alignmentStates[i].state = AlignmentState (
+            posEstimate = AlignmentState (
                 pos.position, 
                 pos.velocity, 
                 Timestamps::beacon.isInit() && !Timestamps::isEmpty(pos.timestamp) ? 
                     Timestamps::beacon.convertToLocal(pos.timestamp) 
-                    : pos.arrivalTime // still have to fix the race condition
+                    : pos.arrivalTime
             );
 
-            alignmentStates[i].isInit = true;
+            Multiplayer::access.setPlayerPosEstimate(i);
         }
         else {
-            alignmentStates[i].state.invalidateAlignmentPlan(AlignmentState::HomingAlignmentPlan(pos, CORRECTION_ACCEL, CORRECTION_MAX_V, CORRECTION_S_EPSILON));
-            alignmentStates[i].state.update(Timestamps::now());
+            posEstimate.invalidateAlignmentPlan(AlignmentState::HomingAlignmentPlan(pos, CORRECTION_ACCEL, CORRECTION_MAX_V, CORRECTION_TIMEOUT_FRAMES, CORRECTION_S_EPSILON));
+            posEstimate.update(Timestamps::now());
         }
         
         Mtx &baseMtx = playerBaseMtx[i];
 
-        const TVec3f &res = alignmentStates[i].state.getPos();
+        const TVec3f &res = posEstimate.getPos();
 
         baseMtx[0][3] = res.x;
         baseMtx[1][3] = res.y;
@@ -448,7 +280,8 @@ void drawAll(J3DModelX *model, J3DMtxBuffer *buffs, u32 numBuffs) {
     MR::showJoint(model, "HandL0");
     MR::showJoint(model, "HandR0");
     for(u32 i = 0; i < numBuffs; i++) {
-        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus)) continue;
+        // TODO: activityStatus/isPlayerActive causes a race condition in a few places
+        if(!Multiplayer::getMostRecentBuffer(i, Multiplayer::info.activityStatus) || isPlayerClipped[i]) continue;
         model->_84 = buffs + i;
         model->prepareShapePackets();
         model->directDraw(nullptr);

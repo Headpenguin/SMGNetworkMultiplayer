@@ -11,6 +11,8 @@
 #include "beacon.hpp"
 #include "debug.hpp"
 #include "accurateTime.hpp"
+#include "alignment.hpp"
+#include "netActor.hpp"
 #include "uiIpFsTool.hpp"
 
 extern kmSymbol init__10GameSystemFv;
@@ -21,6 +23,11 @@ namespace Timestamps {
 };
 
 namespace Multiplayer {
+
+static struct {
+    AlignmentState state;
+    bool isInit;
+} alignmentStates[Multiplayer::MAX_PLAYER_COUNT - 1];
 
 /*s32 PlayerQueue::determineBufPosition() const {
     if(!beacon.isInit()) return -1;
@@ -40,10 +47,10 @@ void PlayerQueue::addPosition(const Packets::PlayerPosition &p) {
         ServerTimestamp now = Timestamps::beacon.convertToServer(Timestamps::beacon.now());
         now.t.timeMs -= 167;
         if(p.timestamp.t.timeMs > fallbackPos.timeMs && p.timestamp.t.timeMs <= now.t.timeMs) fallbackPos = p;
-}
+}}
 */
 static bool initialized;
-static bool connected;
+bool connected;
 
 static const u32 queryCooldown = 60;
 static u32 queryTimer = 0;
@@ -51,8 +58,9 @@ static u32 queryTimer = 0;
 //static int sockfd;
 
 MultiplayerInfo info;
+MultiplayerAccess access;
 
-static Transmission::Transmitter<Packets::PacketProcessor> transmitter;
+Transmission::Transmitter<Packets::PacketProcessor> transmitter;
 
 const static char *SERVER_ADDR_FS = "/CustomCode/serverIP.txt";
 const static char *DEBUG_ADDR_FS = "/CustomCode/debugIP.txt";
@@ -76,6 +84,7 @@ static void init() {
         Transmission::Writer writer (buff + Packets::MAX_PACKET_SIZE, 4 * Packets::MAX_PACKET_SIZE, sd, &serverAddr);
         transmitter = Transmission::Transmitter<Packets::PacketProcessor>(reader, writer, Packets::PacketProcessor(&connected, &info));
         Timestamps::beacon.init1();
+        NetActor::initStarPieceQueue();
         transmitter.init();
         //sockfd = sd;
         initialized = true;
@@ -167,10 +176,15 @@ static void updatePackets(MarioActor *mario) {
             else pos.defaultAnmIdx = -1;
 
             pos.anmSpeed = xanime._20->mSpeed;
+            
+            if(MR::isPlayerHipDropFalling() || MR::isPlayerHipDropLand()) {
+                pos.stateFlags |= Packets::PlayerPosition::O_STATE_HIPDROP;
+            }
 
             pos.timestamp = Timestamps::beacon.isInit() ? 
                 Timestamps::beacon.convertToServer(Timestamps::now())
                 : Timestamps::makeEmptyServerTimestamp();
+            
 
             setDebugMsg(2, transmitter.addPacket(pos).err);
         }
@@ -186,6 +200,36 @@ static void updatePackets(MarioActor *mario) {
 
 
 kmCall(&control__10MarioActorFv + 0x100, updatePackets);
+
+const Packets::PlayerPosition& MultiplayerAccess::getPlayerPosRaw(u32 i) {
+    u32 buffIdx = getMostRecentBuffer(i, info.status);
+    PlayerDoubleBuffer &doubleBuffer = info.players[i];
+
+    if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+        buffIdx = buffIdx == 1 ? 0 : 1;
+        if(simplelock_tryLockLoop(&doubleBuffer.locks[buffIdx]) != TRY_LOCK_RESULT_OK) {
+            return pos[i];
+        }
+    }
+    
+    pos[i] = doubleBuffer.pos[buffIdx];
+
+    simplelock_release(&doubleBuffer.locks[buffIdx]);
+
+    return pos[i];
+}
+
+bool MultiplayerAccess::isPlayerPosEstimateSet(u32 i) const {
+    return alignmentStates[i].isInit;
+}
+
+void MultiplayerAccess::setPlayerPosEstimate(u32 i) const {
+    alignmentStates[i].isInit = true;
+}
+
+AlignmentState& MultiplayerAccess::getPlayerPosEstimate(u32 i) const {
+    return alignmentStates[i].state;
+}
 
 }
 
